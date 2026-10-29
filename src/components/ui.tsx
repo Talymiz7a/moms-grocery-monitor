@@ -88,7 +88,7 @@ export function StatCard({ label, value, hint, to }: { label: string; value: Rea
   const body = (
     <div className="h-full rounded-2xl border border-line bg-white p-4 shadow-sm transition-colors hover:border-brand-500">
       <p className="text-ink-soft">{label}</p>
-      <p className="num mt-1 text-end text-3xl font-bold text-ink">{value}</p>
+      <p className="mt-1 text-right text-3xl font-bold text-ink tabular-nums [unicode-bidi:plaintext]">{value}</p>
       {hint && <p className="mt-1 text-sm text-ink-soft">{hint}</p>}
     </div>
   );

@@ -414,3 +414,48 @@ export const remove = mutation({
     });
   },
 });
+
+/**
+ * Date search: receipts in a date range with their lines (product, quantity,
+ * price) and any alerts that cite them.
+ */
+export const itemsInRange = query({
+  args: { dataset: datasetValidator, from: v.string(), to: v.string() },
+  handler: async (ctx, { dataset, from, to }) => {
+    const receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_dataset_date", (q) => q.eq("dataset", dataset).gte("purchaseDate", from).lte("purchaseDate", to))
+      .collect();
+    if (receipts.length > 400) throw new ConvexError("הטווח גדול מדי — בחרו טווח קצר יותר");
+    const products = new Map(
+      (await ctx.db.query("products").withIndex("by_dataset", (q) => q.eq("dataset", dataset)).collect()).map((p) => [p._id as string, p.canonicalName]),
+    );
+    const alerts = await ctx.db.query("alerts").withIndex("by_dataset_status", (q) => q.eq("dataset", dataset)).collect();
+    const out = [];
+    for (const r of receipts.sort((a, b) => (a.purchaseDate ?? "").localeCompare(b.purchaseDate ?? ""))) {
+      const items = await ctx.db
+        .query("receiptItems")
+        .withIndex("by_receipt", (q) => q.eq("receiptId", r._id))
+        .collect();
+      out.push({
+        ...receiptSummary(r),
+        items: items.map((i) => ({
+          _id: i._id,
+          originalDescription: i.originalDescription,
+          productId: i.productId,
+          productName: i.productId ? products.get(i.productId) : undefined,
+          lineType: i.lineType,
+          quantity: i.quantity,
+          unit: i.unit,
+          unitPriceAgorot: i.unitPriceAgorot,
+          lineTotalAgorot: i.lineTotalAgorot,
+          discountAgorot: i.discountAgorot,
+        })),
+        alerts: alerts
+          .filter((a) => a.receiptIds.includes(r._id))
+          .map((a) => ({ _id: a._id, type: a.type, status: a.status, severity: a.severity, reason: a.reason })),
+      });
+    }
+    return out;
+  },
+});

@@ -8,15 +8,18 @@
  * @module
  */
 
+import type * as analytics from "../analytics.js";
 import type * as app from "../app.js";
 import type * as demo from "../demo.js";
 import type * as fileAccess from "../fileAccess.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as lib_access from "../lib/access.js";
+import type * as lib_analytics from "../lib/analytics.js";
 import type * as lib_config from "../lib/config.js";
 import type * as lib_dates from "../lib/dates.js";
 import type * as lib_demoData from "../lib/demoData.js";
+import type * as lib_facts from "../lib/facts.js";
 import type * as lib_fileLinks from "../lib/fileLinks.js";
 import type * as lib_money from "../lib/money.js";
 import type * as lib_normalize from "../lib/normalize.js";
@@ -37,15 +40,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  analytics: typeof analytics;
   app: typeof app;
   demo: typeof demo;
   fileAccess: typeof fileAccess;
   files: typeof files;
   http: typeof http;
   "lib/access": typeof lib_access;
+  "lib/analytics": typeof lib_analytics;
   "lib/config": typeof lib_config;
   "lib/dates": typeof lib_dates;
   "lib/demoData": typeof lib_demoData;
+  "lib/facts": typeof lib_facts;
   "lib/fileLinks": typeof lib_fileLinks;
   "lib/money": typeof lib_money;
   "lib/normalize": typeof lib_normalize;

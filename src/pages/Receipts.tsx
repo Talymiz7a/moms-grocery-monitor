@@ -1,10 +1,12 @@
 import { useQuery } from "convex/react";
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import { OpenReceiptButton } from "../components/ReceiptFile";
+import { ProductSearch } from "../components/ProductSearch";
+import { ItemsInRange } from "../components/ItemsInRange";
 import { ReceiptStatusChips } from "../components/ReceiptStatus";
-import { Card, EmptyState, Field, Loading, Notice, PageHeader, inputClass, warnInputClass } from "../components/ui";
+import { Card, EmptyState, Field, Loading, PageHeader, inputClass, warnInputClass } from "../components/ui";
 import { formatIls, formatIsoDate, parseDayFirstDate } from "../lib/format";
 import { useAppState } from "../state/AppState";
 
@@ -26,12 +28,31 @@ export function Receipts() {
   const to = parseDayFirstDate(toText) ?? undefined;
   const fromInvalid = fromText.trim() !== "" && !from;
   const toInvalid = toText.trim() !== "" && !to;
-  const rows = useQuery(api.receipts.list, { dataset, filter, from, to });
+  const rawRows = useQuery(api.receipts.list, { dataset, filter, from, to });
+  const navigate = useNavigate();
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "date", dir: -1 });
+  const [showItems, setShowItems] = useState(false);
+  const rows = rawRows && sortRows(rawRows, sort);
+  const th = (key: SortKey, label: string) => (
+    <th className="p-3 text-start font-medium" aria-sort={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        className="inline-flex min-h-9 items-center gap-1 hover:text-brand-700"
+        onClick={() => setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : key === "date" || key === "total" ? -1 : 1 }))}
+      >
+        {label} {sort.key === key ? (sort.dir === 1 ? "▲" : "▼") : ""}
+      </button>
+    </th>
+  );
 
   return (
     <>
       <PageHeader title="קבלות ורכישות" subtitle="כל הקבלות עם קישור לקבלה המקורית" />
       <Card className="mb-4">
+        <div className="mb-4 max-w-xl">
+          <span className="mb-1 block font-medium">חיפוש מוצר — כל הרכישות שלו</span>
+          <ProductSearch onPick={(p) => navigate(`/analysis/products/${p._id}`)} placeholder="למשל: חלב, ביצים, קפה…" />
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="מתאריך" warn={fromInvalid ? "תאריך לא תקין (DD/MM/YYYY)" : undefined}>
             <input className={`${inputClass} ${fromInvalid ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" value={fromText} onChange={(e) => setFromText(e.target.value)} />
@@ -59,9 +80,17 @@ export function Receipts() {
         {(from || to) && (
           <p className="mt-3 text-sm text-ink-soft">קבלות ללא תאריך אינן מוצגות כשבוחרים טווח תאריכים.</p>
         )}
+        {from && to && (
+          <label className="mt-3 inline-flex min-h-11 items-center gap-2 font-medium">
+            <input type="checkbox" className="size-5" checked={showItems} onChange={(e) => setShowItems(e.target.checked)} />
+            הצגת כל הפריטים, הכמויות, המחירים וההתראות בטווח
+          </label>
+        )}
       </Card>
 
-      {rows === undefined ? (
+      {from && to && showItems ? (
+        <ItemsInRange from={from} to={to} />
+      ) : rows === undefined ? (
         <Loading />
       ) : rows.length === 0 ? (
         <EmptyState title="לא נמצאו קבלות">נסו לשנות את הסינון.</EmptyState>
@@ -73,11 +102,11 @@ export function Receipts() {
             <table className="w-full text-start">
               <thead className="bg-page text-ink-soft">
                 <tr>
-                  <th className="p-3 text-start font-medium">תאריך</th>
-                  <th className="p-3 text-start font-medium">חנות</th>
-                  <th className="p-3 text-start font-medium">מס' קבלה</th>
-                  <th className="p-3 text-start font-medium">שורות</th>
-                  <th className="p-3 text-start font-medium">סכום</th>
+                  {th("date", "תאריך")}
+                  {th("store", "חנות")}
+                  {th("number", "מס' קבלה")}
+                  {th("lines", "שורות")}
+                  {th("total", "סכום")}
                   <th className="p-3 text-start font-medium">מצב</th>
                   <th className="p-3 text-start font-medium">מקור</th>
                 </tr>
@@ -118,9 +147,22 @@ export function Receipts() {
           </ul>
         </>
       )}
-      <div className="mt-6">
-        <Notice title="בשלב 2">חיפוש מוצרים עם השלמה אוטומטית, מיון לפי עמודות וכל רכישות מוצר מסוים יתווספו בשלב הבא.</Notice>
-      </div>
+
     </>
   );
+}
+
+type SortKey = "date" | "store" | "number" | "lines" | "total";
+type Row = { purchaseDate?: string; storeName?: string; receiptNumber?: string; itemCount: number; totalAgorot?: number; uploadedAt: number };
+
+function sortRows<T extends Row>(rows: T[], sort: { key: SortKey; dir: 1 | -1 }): T[] {
+  const val = (r: T): string | number =>
+    sort.key === "date" ? r.purchaseDate ?? "" : sort.key === "store" ? r.storeName ?? "" : sort.key === "number" ? r.receiptNumber ?? "" : sort.key === "lines" ? r.itemCount : r.totalAgorot ?? -1;
+  return [...rows].sort((a, b) => {
+    // Receipts without a date stay at the top so they are never hidden.
+    if (sort.key === "date" && !a.purchaseDate !== !b.purchaseDate) return a.purchaseDate ? 1 : -1;
+    const x = val(a), y = val(b);
+    const c = typeof x === "string" ? x.localeCompare(String(y), "he") : x - (y as number);
+    return c * sort.dir || b.uploadedAt - a.uploadedAt;
+  });
 }
