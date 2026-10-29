@@ -167,6 +167,19 @@ export default defineSchema({
     resolvedAt: v.optional(v.number()),
     resolvedBy: v.optional(v.string()),
     dedupeKey: v.string(),
+    // The evidence no longer exists (receipt corrected or deleted); kept for history.
+    inactive: v.optional(v.boolean()),
+    reopenedAt: v.optional(v.number()),
+    reviewHistory: v.optional(
+      v.array(
+        v.object({
+          at: v.number(),
+          actor: v.string(),
+          status: v.union(v.literal("pending"), v.literal("explained"), v.literal("investigate")),
+          notes: v.optional(v.string()),
+        }),
+      ),
+    ),
   })
     .index("by_dataset_status", ["dataset", "status"])
     .index("by_dataset_dedupe", ["dataset", "dedupeKey"]),

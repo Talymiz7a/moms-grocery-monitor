@@ -393,3 +393,27 @@ export function receiptText(r: DemoReceipt): string[] {
   rows.push("תודה ולהתראות!");
   return rows;
 }
+
+/** Demo expected-shopping rules (manual, distinct from learned history). */
+export const DEMO_EXPECTATIONS: Array<{
+  productKey: string;
+  usualQuantity?: number;
+  usualUnit?: Unit;
+  expectedIntervalDays?: number;
+  maxPerMonth?: number;
+  minIntervalDays?: number;
+  quantityMax?: number;
+  notes?: string;
+}> = [
+  { productKey: "milk3", usualQuantity: 3, usualUnit: "unit", expectedIntervalDays: 4, maxPerMonth: 10, quantityMax: 4, notes: "בערך 3 ליטר בשבוע" },
+  { productKey: "eggs", usualQuantity: 1, usualUnit: "pack", expectedIntervalDays: 10, maxPerMonth: 4, minIntervalDays: 5, notes: "תבנית אחת לכ-10 ימים" },
+  { productKey: "coffee", usualQuantity: 1, usualUnit: "unit", expectedIntervalDays: 30, maxPerMonth: 2, minIntervalDays: 14, quantityMax: 2, notes: "צנצנת אחת לחודש" },
+  { productKey: "bread", usualQuantity: 1, usualUnit: "unit", expectedIntervalDays: 4, maxPerMonth: 12 },
+  { productKey: "toilet", usualQuantity: 1, usualUnit: "pack", expectedIntervalDays: 35, maxPerMonth: 1 },
+];
+
+/** A few already-reviewed demo alerts, to demonstrate the review history. */
+export const DEMO_REVIEWS: Array<{ type: string; productKey: string; month?: string; status: "explained" | "investigate"; notes: string }> = [
+  { type: "not_expected", productKey: "dogFood", status: "explained", notes: "נקנה עבור הכלב של השכנה, בתיאום עם אמא (נתון בדיוני להדגמה)." },
+  { type: "not_expected", productKey: "energy", month: "2026-10", status: "investigate", notes: "לברר עם המטפלת למי נקנו המשקאות (נתון בדיוני להדגמה)." },
+];

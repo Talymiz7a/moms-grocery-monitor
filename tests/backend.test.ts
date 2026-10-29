@@ -241,3 +241,103 @@ describe("receipt files are served only through signed, expiring links", () => {
     expect(await t.mutation(api.files.getFileLink, { receiptId: realId, editorCode: CODE })).not.toBeNull();
   });
 });
+
+describe("alerts workflow (Stage 3)", () => {
+  test("demo data produces the expected alerts", async () => {
+    const t = convexTest(schema, modules);
+    await t.action(internal.demo.seed, {});
+    const { alerts } = await t.query(api.alerts.list, { dataset: "demo", status: "all" });
+    const has = (type: string, text: string) => alerts.some((a) => a.type === type && a.reason.includes(text));
+    expect(has("large_quantity", "חלב 3%")).toBe(true);
+    expect(has("excessive_frequency", "קפה")).toBe(true);
+    expect(has("close_interval", "קפה")).toBe(true);
+    expect(alerts.filter((a) => a.type === "duplicate_receipt")).toHaveLength(2);
+    expect(has("new_product", "חומוס")).toBe(true);
+    expect(has("not_expected", "משקה אנרגיה")).toBe(true);
+    expect(has("high_total", "236.12")).toBe(true);
+    expect(alerts.find((a) => a.type === "not_expected" && a.reason.includes("לכלבים"))?.status).toBe("explained");
+    const counts = await t.query(api.alerts.counts, { dataset: "demo" });
+    expect(counts.explained).toBe(1);
+    expect(counts.investigate).toBe(1);
+    // Every alert links to its receipts and explains its basis.
+    for (const a of alerts) {
+      expect(a.receipts.length).toBeGreaterThan(0);
+      expect(typeof a.evidence.explanation).toBe("string");
+    }
+  });
+
+  test("reviewing: explanation required, read-only refused, history kept", async () => {
+    const t = convexTest(schema, modules);
+    await t.action(internal.demo.seed, {});
+    const { alerts } = await t.query(api.alerts.list, { dataset: "demo" });
+    const a = alerts.find((x) => x.type === "large_quantity")!;
+    await expect(t.mutation(api.alerts.review, { editorCode: "nope", alertId: a._id, status: "explained", notes: "x" })).rejects.toThrow();
+    await expect(t.mutation(api.alerts.review, { editorCode: CODE, alertId: a._id, status: "explained" })).rejects.toThrow(/הסבר/);
+    await t.mutation(api.alerts.review, { editorCode: CODE, alertId: a._id, status: "explained", notes: "אירוח משפחתי" });
+    const after = (await t.query(api.alerts.list, { dataset: "demo", status: "explained" })).alerts.find((x) => x._id === a._id)!;
+    expect(after.resolvedAt).toBeDefined();
+    expect(after.reviewHistory.at(-1)).toMatchObject({ status: "explained", notes: "אירוח משפחתי" });
+  });
+
+  test("an explained alert stays closed on recompute, and reopens only when its evidence changes", async () => {
+    const t = convexTest(schema, modules);
+    await t.action(internal.demo.seed, {});
+    const { alerts } = await t.query(api.alerts.list, { dataset: "demo" });
+    const a = alerts.find((x) => x.type === "large_quantity" && x.reason.includes("חלב 3%"))!;
+    await t.mutation(api.alerts.review, { editorCode: CODE, alertId: a._id, status: "explained", notes: "אירוח" });
+    await t.mutation(internal.alerts.recompute, { dataset: "demo" });
+    let doc = await t.run((ctx) => ctx.db.get(a._id));
+    expect(doc?.status).toBe("explained");
+    // New evidence: the same purchase is corrected to 8 litres.
+    await t.run(async (ctx) => {
+      const items = await ctx.db.query("receiptItems").withIndex("by_receipt", (q) => q.eq("receiptId", a.receipts[0]._id)).collect();
+      const milk = items.find((i) => i.quantity === 6)!;
+      await ctx.db.patch(milk._id, { quantity: 8, lineTotalAgorot: 5520 });
+    });
+    await t.mutation(internal.alerts.recompute, { dataset: "demo" });
+    doc = await t.run((ctx) => ctx.db.get(a._id));
+    expect(doc?.status).toBe("pending");
+    expect(doc?.reopenedAt).toBeDefined();
+  });
+
+  test("an override removes a never-reviewed duplicate alert", async () => {
+    const t = convexTest(schema, modules);
+    await t.action(internal.demo.seed, {});
+    const dups = (await t.query(api.alerts.list, { dataset: "demo" })).alerts.filter((a) => a.type === "duplicate_receipt");
+    await t.mutation(api.receipts.setDuplicateOverride, { editorCode: CODE, receiptId: dups[0].receipts[0]._id, notDuplicate: true });
+    await t.mutation(internal.alerts.recompute, { dataset: "demo" });
+    const left = (await t.query(api.alerts.list, { dataset: "demo" })).alerts.filter((a) => a.type === "duplicate_receipt");
+    expect(left).toHaveLength(1);
+  });
+
+  test("expectations validate input; merge and split move lines and keep history", async () => {
+    const t = convexTest(schema, modules);
+    await t.action(internal.demo.seed, {});
+    const products = await t.query(api.products.listWithExpectations, { dataset: "demo" });
+    const milk3 = products.find((p) => p.canonicalName === "חלב 3% 1 ליטר")!;
+    const milk1 = products.find((p) => p.canonicalName === "חלב 1% 1 ליטר")!;
+    expect(milk3.expectation?.quantityMax).toBe(4);
+    await expect(
+      t.mutation(api.products.setExpectation, { editorCode: CODE, productId: milk3._id, expectation: { quantityMin: 5, quantityMax: 2 } }),
+    ).rejects.toThrow();
+    expect(await t.query(api.products.mergeCheck, { sourceId: milk1._id, targetId: milk3._id })).toMatchObject({ conflict: true });
+
+    const before = await t.query(api.analytics.productDetail, { dataset: "demo", productId: milk3._id });
+    const milk1Detail = await t.query(api.analytics.productDetail, { dataset: "demo", productId: milk1._id });
+    const res = await t.mutation(api.products.merge, { editorCode: CODE, sourceId: milk1._id, targetId: milk3._id });
+    expect(res.moved).toBeGreaterThan(0);
+    const merged = await t.query(api.analytics.productDetail, { dataset: "demo", productId: milk3._id });
+    if (!merged || "mergedIntoId" in merged || !before || "mergedIntoId" in before || !milk1Detail || "mergedIntoId" in milk1Detail) throw new Error("unexpected");
+    // Same-receipt purchases of both count once, so occasions grow by at most milk1's count.
+    expect(merged.summary.totalOccasions).toBeGreaterThan(before.summary.totalOccasions);
+    expect(merged.summary.totalOccasions).toBeLessThanOrEqual(before.summary.totalOccasions + milk1Detail.summary.totalOccasions);
+    expect(await t.query(api.analytics.productDetail, { dataset: "demo", productId: milk1._id })).toEqual({ mergedIntoId: milk3._id });
+
+    // Split the 1% wording back out.
+    const split = await t.mutation(api.products.splitAlias, { editorCode: CODE, productId: milk3._id, alias: "חלב 1% 1 ליטר", newName: "חלב 1% (פוצל)" });
+    expect(split.moved).toBeGreaterThan(0);
+    const audit = await t.run((ctx) => ctx.db.query("auditLog").collect());
+    expect(audit.some((a) => a.action === "product.merge")).toBe(true);
+    expect(audit.some((a) => a.action === "product.split")).toBe(true);
+  });
+});

@@ -15,6 +15,7 @@ import {
   writeAudit,
   type ReviewLine,
 } from "./lib/receiptOps";
+import { scheduleRecompute } from "./lib/recompute";
 
 function receiptSummary(r: Doc<"receipts">) {
   return {
@@ -351,6 +352,7 @@ export const saveReview = mutation({
         (Object.keys(changes).length ? ` · שונו: ${Object.keys(changes).length} שדות כותרת` : ""),
       details: { changes, previousLineCount: oldItems.length, lineCount: lines.length, correctedCount },
     });
+    await scheduleRecompute(ctx, receipt.dataset);
 
     return { reconciliation: rec, duplicate };
   },
@@ -371,6 +373,7 @@ export const setDuplicateOverride = mutation({
       entityId: receiptId,
       summary: notDuplicate ? "סומנה ידנית: אינה קבלה כפולה" : "בוטל הסימון הידני של \"אינה כפולה\"",
     });
+    await scheduleRecompute(ctx, receipt.dataset);
   },
 });
 
@@ -412,6 +415,7 @@ export const remove = mutation({
       summary: `נמחקה קבלה: ${receipt.storeName ?? "ללא חנות"} ${receipt.purchaseDate ?? ""}`.trim(),
       details: { receipt: snapshot, items: items.map(({ _id, _creationTime, ...rest }) => rest) },
     });
+    await scheduleRecompute(ctx, receipt.dataset);
   },
 });
 

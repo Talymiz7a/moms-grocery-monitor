@@ -1,9 +1,10 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Analysis } from "./pages/Analysis";
-import { ComingSoon } from "./pages/ComingSoon";
+import { Alerts } from "./pages/Alerts";
 import { Dashboard } from "./pages/Dashboard";
 import { ProductDetail } from "./pages/ProductDetail";
+import { ProductsSettings } from "./pages/ProductsSettings";
 import { ReceiptDetail } from "./pages/ReceiptDetail";
 import { Receipts } from "./pages/Receipts";
 import { Review } from "./pages/Review";
@@ -21,8 +22,9 @@ export function App() {
         <Route path="/receipts/:id/review" element={<Review />} />
         <Route path="/analysis" element={<Analysis />} />
         <Route path="/analysis/products/:id" element={<ProductDetail />} />
-        <Route path="/alerts" element={<ComingSoon page="alerts" />} />
+        <Route path="/alerts" element={<Alerts />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/settings/products" element={<ProductsSettings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

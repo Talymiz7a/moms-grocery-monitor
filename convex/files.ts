@@ -5,6 +5,7 @@ import { EDITOR_ACTOR, isEditorCodeValid, requireEditor } from "./lib/access";
 import { FILE_LINK_TTL_MS, fileLinkSecret, signFileLink } from "./lib/fileLinks";
 import { ALLOWED_UPLOAD_TYPES, MAX_UPLOAD_BYTES } from "./lib/config";
 import { findDuplicate, writeAudit } from "./lib/receiptOps";
+import { scheduleRecompute } from "./lib/recompute";
 
 export const generateUploadUrl = mutation({
   args: { editorCode: v.string() },
@@ -69,6 +70,7 @@ export const createDraftFromUpload = mutation({
       entityId: receiptId,
       summary: `הועלה קובץ קבלה: ${fileName.slice(0, 80)}` + (duplicate ? ` · ${duplicate.reason}` : ""),
     });
+    if (duplicate) await scheduleRecompute(ctx, dataset);
     return { receiptId, duplicate };
   },
 });

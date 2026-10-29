@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as alerts from "../alerts.js";
 import type * as analytics from "../analytics.js";
 import type * as app from "../app.js";
 import type * as demo from "../demo.js";
@@ -16,6 +17,7 @@ import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as lib_access from "../lib/access.js";
 import type * as lib_analytics from "../lib/analytics.js";
+import type * as lib_anomalies from "../lib/anomalies.js";
 import type * as lib_config from "../lib/config.js";
 import type * as lib_dates from "../lib/dates.js";
 import type * as lib_demoData from "../lib/demoData.js";
@@ -27,6 +29,7 @@ import type * as lib_ocrSchema from "../lib/ocrSchema.js";
 import type * as lib_productMatch from "../lib/productMatch.js";
 import type * as lib_receiptOps from "../lib/receiptOps.js";
 import type * as lib_receiptSvg from "../lib/receiptSvg.js";
+import type * as lib_recompute from "../lib/recompute.js";
 import type * as lib_reconcile from "../lib/reconcile.js";
 import type * as ocr from "../ocr.js";
 import type * as ocrStore from "../ocrStore.js";
@@ -40,6 +43,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  alerts: typeof alerts;
   analytics: typeof analytics;
   app: typeof app;
   demo: typeof demo;
@@ -48,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/access": typeof lib_access;
   "lib/analytics": typeof lib_analytics;
+  "lib/anomalies": typeof lib_anomalies;
   "lib/config": typeof lib_config;
   "lib/dates": typeof lib_dates;
   "lib/demoData": typeof lib_demoData;
@@ -59,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   "lib/productMatch": typeof lib_productMatch;
   "lib/receiptOps": typeof lib_receiptOps;
   "lib/receiptSvg": typeof lib_receiptSvg;
+  "lib/recompute": typeof lib_recompute;
   "lib/reconcile": typeof lib_reconcile;
   ocr: typeof ocr;
   ocrStore: typeof ocrStore;

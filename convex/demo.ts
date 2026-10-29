@@ -8,6 +8,8 @@ import { generateDemoData, receiptText } from "./lib/demoData";
 import { reconcile } from "./lib/reconcile";
 import { renderReceiptSvg } from "./lib/receiptSvg";
 import { writeAudit } from "./lib/receiptOps";
+import { recomputeAlerts } from "./alerts";
+import { DEMO_EXPECTATIONS, DEMO_REVIEWS } from "./lib/demoData";
 
 const DEMO_TABLES: TableNames[] = ["receiptItems", "alerts", "productExpectations", "settings", "auditLog", "products", "receipts"];
 
@@ -217,8 +219,39 @@ async function seedDemo(ctx: ActionCtx): Promise<number> {
   }
   // Originals must be inserted before the receipts that point at them.
   payload.sort((a, b) => Number(!!a.duplicateOfKey) - Number(!!b.duplicateOfKey));
-  return await ctx.runMutation(internal.demo.insertReceipts, { receipts: payload });
+  const count: number = await ctx.runMutation(internal.demo.insertReceipts, { receipts: payload });
+  await ctx.runMutation(internal.demo.seedRulesAndAlerts, { productIds });
+  return count;
 }
+
+/** Demo expected-shopping rules, alert sensitivity, detected alerts and a few sample reviews. */
+export const seedRulesAndAlerts = internalMutation({
+  args: { productIds: v.record(v.string(), v.id("products")) },
+  handler: async (ctx, { productIds }) => {
+    const now = Date.now();
+    await ctx.db.insert("settings", { dataset: "demo", alertSensitivity: "medium", updatedAt: now });
+    for (const e of DEMO_EXPECTATIONS) {
+      const productId = productIds[e.productKey];
+      if (!productId) continue;
+      const { productKey: _k, ...rule } = e;
+      await ctx.db.insert("productExpectations", { dataset: "demo", productId, ...rule, updatedAt: now, updatedBy: "נתוני הדגמה" });
+    }
+    await recomputeAlerts(ctx, "demo");
+    // Sample reviews so the review history can be seen in the demo.
+    const alerts = await ctx.db.query("alerts").withIndex("by_dataset_status", (q) => q.eq("dataset", "demo")).collect();
+    for (const r of DEMO_REVIEWS) {
+      const a = alerts.find((x) => x.type === r.type && x.productId === productIds[r.productKey] && (!r.month || x.periodStart?.startsWith(r.month)));
+      if (!a) continue;
+      await ctx.db.patch(a._id, {
+        status: r.status,
+        notes: r.notes,
+        resolvedAt: r.status === "explained" ? now : undefined,
+        resolvedBy: "נתוני הדגמה",
+        reviewHistory: [{ at: now, actor: "נתוני הדגמה", status: r.status, notes: r.notes }],
+      });
+    }
+  },
+});
 
 /** Run from the CLI: `npx convex run demo:seed`. Replaces demo data only. */
 export const seed = internalAction({

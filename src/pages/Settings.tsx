@@ -1,4 +1,5 @@
-import { useAction, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import { api } from "../../convex/_generated/api";
 import { Button, Card, Chip, Notice, PageHeader } from "../components/ui";
@@ -51,6 +52,14 @@ export function Settings() {
         </Card>
 
         <Card>
+          <h2 className="mb-3 text-xl font-bold">מוצרים ורשימת קניות צפויה</h2>
+          <p className="mb-3 text-ink-soft">כמות רגילה, מרווח צפוי, מקסימום בחודש וסיווג צפוי / מזדמן / לא צפוי / לבדיקה ידנית לכל מוצר. וגם איחוד ופיצול מוצרים.</p>
+          <Link to="/settings/products" className="inline-flex min-h-11 items-center rounded-xl bg-brand-500 px-4 font-medium text-white hover:bg-brand-600">ניהול מוצרים וציפיות</Link>
+        </Card>
+
+        <AlertSensitivity />
+
+        <Card>
           <h2 className="mb-3 text-xl font-bold">גישה ועריכה</h2>
           <p className="mb-3 text-ink-soft">
             התצוגה פתוחה לצפייה ללא כניסה. כל שינוי דורש קוד עורך שמוגדר בשרת. זהו פתרון זמני לתצוגה המקדימה — לפני שימוש בקבלות אמיתיות תוגדר הזדהות מלאה.
@@ -82,5 +91,45 @@ export function Settings() {
         </Card>
       </div>
     </>
+  );
+}
+
+function AlertSensitivity() {
+  const { dataset, isEditor, editorCode } = useAppState();
+  const settings = useQuery(api.alerts.settings, { dataset });
+  const setSensitivity = useMutation(api.alerts.setSensitivity);
+  const [msg, setMsg] = useState<string | null>(null);
+  if (!settings) return null;
+  return (
+    <Card>
+      <h2 className="mb-1 text-xl font-bold">רגישות ההתראות</h2>
+      <p className="mb-3 text-ink-soft">
+        קובעת כמה חריג צריך להיות דפוס לעומת ההיסטוריה של המוצר כדי שתיווצר התראה. השוואה להיסטוריה נעשית רק כשיש לפחות 3 חודשים / 5 רכישות קודמות; אחרת מסומן "ראיות מוגבלות".
+      </p>
+      <div className="space-y-2" role="radiogroup" aria-label="רגישות">
+        {settings.options.map((o) => (
+          <label key={o.key} className={`flex min-h-11 items-center gap-3 rounded-xl border p-3 ${settings.sensitivity === o.key ? "border-brand-500 bg-brand-50" : "border-line"}`}>
+            <input
+              type="radio"
+              className="size-5"
+              checked={settings.sensitivity === o.key}
+              disabled={!isEditor}
+              onChange={async () => {
+                setMsg(null);
+                try {
+                  await setSensitivity({ editorCode: editorCode!, dataset, sensitivity: o.key });
+                  setMsg("נשמר — ההתראות מחושבות מחדש");
+                } catch (e) {
+                  setMsg(errorMessage(e));
+                }
+              }}
+            />
+            {o.label}
+          </label>
+        ))}
+      </div>
+      {!isEditor && <p className="mt-2 text-sm text-ink-soft">שינוי זמין במצב עריכה בלבד.</p>}
+      {msg && <p className="mt-2 font-medium">{msg}</p>}
+    </Card>
   );
 }

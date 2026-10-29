@@ -5,6 +5,7 @@ import { EDITOR_ACTOR } from "./lib/access";
 import { confirmedWordingIndex } from "./lib/productMatch";
 import { reconcile } from "./lib/reconcile";
 import { findDuplicate, writeAudit } from "./lib/receiptOps";
+import { scheduleRecompute } from "./lib/recompute";
 
 export const getForOcr = internalQuery({
   args: { receiptId: v.id("receipts") },
@@ -138,5 +139,6 @@ export const saveResult = internalMutation({
       summary: `קריאה אוטומטית הושלמה · ${args.lines.length} שורות · ודאות ${args.confidence === "high" ? "גבוהה" : args.confidence === "medium" ? "בינונית" : "נמוכה"}`,
       details: { model: args.model, usage: args.usage },
     });
+    await scheduleRecompute(ctx, r.dataset);
   },
 });
