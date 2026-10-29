@@ -8,7 +8,6 @@
  * @module
  */
 
-import type { ApiFromModules, FilterApi, FunctionReference } from "convex/server";
 import type * as app from "../app.js";
 import type * as demo from "../demo.js";
 import type * as fileAccess from "../fileAccess.js";
@@ -31,12 +30,18 @@ import type * as ocrStore from "../ocrStore.js";
 import type * as products from "../products.js";
 import type * as receipts from "../receipts.js";
 
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+
 declare const fullApi: ApiFromModules<{
-  "app": typeof app;
-  "demo": typeof demo;
-  "fileAccess": typeof fileAccess;
-  "files": typeof files;
-  "http": typeof http;
+  app: typeof app;
+  demo: typeof demo;
+  fileAccess: typeof fileAccess;
+  files: typeof files;
+  http: typeof http;
   "lib/access": typeof lib_access;
   "lib/config": typeof lib_config;
   "lib/dates": typeof lib_dates;
@@ -49,11 +54,36 @@ declare const fullApi: ApiFromModules<{
   "lib/receiptOps": typeof lib_receiptOps;
   "lib/receiptSvg": typeof lib_receiptSvg;
   "lib/reconcile": typeof lib_reconcile;
-  "ocr": typeof ocr;
-  "ocrStore": typeof ocrStore;
-  "products": typeof products;
-  "receipts": typeof receipts;
+  ocr: typeof ocr;
+  ocrStore: typeof ocrStore;
+  products: typeof products;
+  receipts: typeof receipts;
 }>;
-export declare const api: FilterApi<typeof fullApi, FunctionReference<any, "public">>;
-export declare const internal: FilterApi<typeof fullApi, FunctionReference<any, "internal">>;
+
+/**
+ * A utility for referencing Convex functions in your app's public API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
+export declare const api: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "public">
+>;
+
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
+export declare const internal: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "internal">
+>;
+
 export declare const components: {};
