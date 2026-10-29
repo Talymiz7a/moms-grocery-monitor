@@ -1,0 +1,126 @@
+import { useQuery } from "convex/react";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { api } from "../../convex/_generated/api";
+import { OpenReceiptButton } from "../components/ReceiptFile";
+import { ReceiptStatusChips } from "../components/ReceiptStatus";
+import { Card, EmptyState, Field, Loading, Notice, PageHeader, inputClass, warnInputClass } from "../components/ui";
+import { formatIls, formatIsoDate, parseDayFirstDate } from "../lib/format";
+import { useAppState } from "../state/AppState";
+
+const FILTERS = [
+  { key: "all", label: "הכל" },
+  { key: "draft", label: "ממתינות לבדיקה" },
+  { key: "verified", label: "נבדקו" },
+  { key: "issues", label: "דורשות תשומת לב" },
+] as const;
+type FilterKey = (typeof FILTERS)[number]["key"];
+
+export function Receipts() {
+  const { dataset } = useAppState();
+  const [params, setParams] = useSearchParams();
+  const filter = (FILTERS.find((f) => f.key === params.get("filter"))?.key ?? "all") as FilterKey;
+  const [fromText, setFromText] = useState("");
+  const [toText, setToText] = useState("");
+  const from = parseDayFirstDate(fromText) ?? undefined;
+  const to = parseDayFirstDate(toText) ?? undefined;
+  const fromInvalid = fromText.trim() !== "" && !from;
+  const toInvalid = toText.trim() !== "" && !to;
+  const rows = useQuery(api.receipts.list, { dataset, filter, from, to });
+
+  return (
+    <>
+      <PageHeader title="קבלות ורכישות" subtitle="כל הקבלות עם קישור לקבלה המקורית" />
+      <Card className="mb-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="מתאריך" warn={fromInvalid ? "תאריך לא תקין (DD/MM/YYYY)" : undefined}>
+            <input className={`${inputClass} ${fromInvalid ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" value={fromText} onChange={(e) => setFromText(e.target.value)} />
+          </Field>
+          <Field label="עד תאריך" warn={toInvalid ? "תאריך לא תקין (DD/MM/YYYY)" : undefined}>
+            <input className={`${inputClass} ${toInvalid ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" value={toText} onChange={(e) => setToText(e.target.value)} />
+          </Field>
+          <div className="sm:col-span-2">
+            <span className="mb-1 block font-medium">מצב</span>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="סינון לפי מצב">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  aria-pressed={filter === f.key}
+                  onClick={() => setParams(f.key === "all" ? {} : { filter: f.key })}
+                  className={`min-h-11 rounded-xl border px-3 font-medium ${filter === f.key ? "border-brand-500 bg-brand-500 text-white" : "border-line bg-white hover:border-brand-500"}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        {(from || to) && (
+          <p className="mt-3 text-sm text-ink-soft">קבלות ללא תאריך אינן מוצגות כשבוחרים טווח תאריכים.</p>
+        )}
+      </Card>
+
+      {rows === undefined ? (
+        <Loading />
+      ) : rows.length === 0 ? (
+        <EmptyState title="לא נמצאו קבלות">נסו לשנות את הסינון.</EmptyState>
+      ) : (
+        <>
+          <p className="mb-2 text-ink-soft">{rows.length} קבלות</p>
+          {/* Table on wider screens */}
+          <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white md:block">
+            <table className="w-full text-start">
+              <thead className="bg-page text-ink-soft">
+                <tr>
+                  <th className="p-3 text-start font-medium">תאריך</th>
+                  <th className="p-3 text-start font-medium">חנות</th>
+                  <th className="p-3 text-start font-medium">מס' קבלה</th>
+                  <th className="p-3 text-start font-medium">שורות</th>
+                  <th className="p-3 text-start font-medium">סכום</th>
+                  <th className="p-3 text-start font-medium">מצב</th>
+                  <th className="p-3 text-start font-medium">מקור</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {rows.map((r) => (
+                  <tr key={r._id} className="hover:bg-page">
+                    <td className="p-3">
+                      <Link className="num font-medium text-brand-700 underline" to={`/receipts/${r._id}`}>
+                        {r.purchaseDate ? formatIsoDate(r.purchaseDate) : "ללא תאריך"}
+                      </Link>
+                    </td>
+                    <td className="p-3">{r.storeName ?? "—"}</td>
+                    <td className="num p-3 text-end whitespace-nowrap">{r.receiptNumber ?? "—"}</td>
+                    <td className="num p-3 text-end">{r.itemCount}</td>
+                    <td className="num p-3 text-end font-semibold">{formatIls(r.totalAgorot)}</td>
+                    <td className="p-3"><ReceiptStatusChips r={r} /></td>
+                    <td className="p-3">{r.hasFile ? <OpenReceiptButton receiptId={r._id} compact /> : "ידני"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Cards on phones */}
+          <ul className="space-y-3 md:hidden">
+            {rows.map((r) => (
+              <li key={r._id}>
+                <Link to={`/receipts/${r._id}`} className="block rounded-2xl border border-line bg-white p-4">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="num font-semibold">{r.purchaseDate ? formatIsoDate(r.purchaseDate) : "ללא תאריך"}</span>
+                    <span className="num font-bold">{formatIls(r.totalAgorot)}</span>
+                  </div>
+                  <p className="mt-1">{r.storeName ?? "—"} · {r.itemCount} שורות</p>
+                  <div className="mt-2"><ReceiptStatusChips r={r} /></div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <div className="mt-6">
+        <Notice title="בשלב 2">חיפוש מוצרים עם השלמה אוטומטית, מיון לפי עמודות וכל רכישות מוצר מסוים יתווספו בשלב הבא.</Notice>
+      </div>
+    </>
+  );
+}

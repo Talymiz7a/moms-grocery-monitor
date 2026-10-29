@@ -1,2 +1,100 @@
-# moms-grocery-monitor
-Grocery receipt tracking and anomaly detection app with OCR, purchase frequency analysis, dashboards, and alerts.
+# Mom's Grocery Monitor (מעקב קניות אמא)
+
+A private, Hebrew (RTL) web app for monitoring grocery purchases made for an elderly
+mother: receipt upload and reading, purchase-frequency analysis and review of unusual
+purchases. It is a monitoring tool, not a budgeting app — an anomaly is not proof of
+misconduct; the app shows evidence and supports human review.
+
+**Status: Stage 1 of 5 (preview, not approved for real data).**
+
+| Stage | Scope | Status |
+|---|---|---|
+| 1 | Database, Hebrew interface, navigation, upload, OCR, manual review | ✅ built |
+| 2 | Searches, frequency calculations, grouped monthly chart, quantity analysis, history | planned |
+| 3 | Expected shopping rules, anomalies, duplicate alerts, review statuses | planned |
+| 4 | Dashboard, reports, exports | planned |
+| 5 | Five-month demo verification and end-to-end testing | planned |
+
+## Architecture
+
+- **Frontend:** React 19 + TypeScript + Vite, Tailwind CSS v4, React Router. Hebrew
+  RTL throughout (`<html lang="he" dir="rtl">`), DD/MM/YYYY dates, ILS amounts.
+- **Backend & storage:** [Convex](https://convex.dev) — database, file storage for
+  receipts, server functions (`convex/`).
+- **Hosting:** Vercel (static build; `vercel.json` deploys Convex functions then builds).
+- **OCR:** Claude via the Anthropic API (`convex/ocr.ts`), **disabled by default**.
+
+### Key rules implemented
+
+- **Demo and real data never mix.** Every record has `dataset: "demo" | "real"`, and
+  every index and query starts with it. Demo reset deletes demo records only. Real data
+  is disabled in the UI until authentication is set up.
+- **Counting:** purchase *frequency* = number of distinct receipts containing a product;
+  *quantity* = summed units; six units on one receipt (or several lines of the same
+  product) are **one** purchase occasion. Only verified receipts and confirmed product
+  identities count.
+- **Money** is stored as integer agorot. Receipt lines are reconciled against the
+  printed total; differences are shown, never silently corrected.
+- **OCR never invents values:** unreadable fields stay empty and are flagged
+  low-confidence; every receipt goes through a review screen before it counts.
+- **Product matching** suggests matches; a person confirms. Different sizes or fat
+  percentages (e.g. milk 3% vs 1%) are never proposed as a strong match. Only exact,
+  previously confirmed wording is matched automatically.
+- **Duplicates** (same file fingerprint, same receipt number + store, or same store +
+  date + total) block approval until a person overrides or deletes.
+- **Receipt files** are never served from public URLs: the app requests a 10-minute
+  HMAC-signed link that an HTTP action verifies (`convex/http.ts`).
+- **Audit log** records uploads, OCR runs, reviews, overrides and deletions.
+- **Write protection (temporary):** the preview has no login; anyone can view demo
+  data, but every change requires `EDITOR_CODE`. Must be replaced by real
+  authentication before real receipts are used.
+
+## Environment variables
+
+Set in the **Convex dashboard → Settings → Environment Variables** (never in the repo):
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `EDITOR_CODE` | yes | Code that unlocks editing (min. 8 chars). Unset = everything read-only. |
+| `FILE_LINK_SECRET` | yes | Random secret (≥16 chars) for signing receipt-file links. |
+| `OCR_ENABLED` | no | `true` to allow paid Claude OCR calls. Off by default. |
+| `ANTHROPIC_API_KEY` | no | Anthropic API key, needed only when `OCR_ENABLED=true`. |
+| `OCR_MODEL` | no | Model ID. Default `claude-opus-5-5`. |
+
+Set in **Vercel → Project → Settings → Environment Variables**:
+
+| Variable | Purpose |
+|---|---|
+| `CONVEX_DEPLOY_KEY` | Lets the Vercel build deploy Convex functions and set `VITE_CONVEX_URL`. |
+
+## Development
+
+```bash
+npm install
+npx convex dev          # creates/links a Convex deployment and regenerates convex/_generated
+npm run dev             # Vite dev server
+```
+
+Load the demo data (five fictional months, 01/06/2026–28/10/2026):
+
+```bash
+npx convex run demo:seed
+```
+
+Checks:
+
+```bash
+npm test                # unit tests + Convex backend tests (convex-test)
+npm run typecheck
+npm run build
+```
+
+## Demo data scenarios
+
+The deterministic demo dataset (`convex/lib/demoData.ts`) includes normal recurring
+purchases, a quantity spike (6 litres of milk), short-interval repeats (coffee in
+October), new products (hummus from September), products not normally expected
+(energy drinks, dog food), two duplicate receipts (same file; re-photographed),
+inconsistent product wording, low-confidence OCR drafts, discounts, a return line,
+two receipts on the same day, a torn receipt with no total, a receipt with no date
+and an unexplained total mismatch. Every demo receipt has a generated receipt image.

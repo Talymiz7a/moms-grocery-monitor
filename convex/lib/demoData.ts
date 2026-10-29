@@ -349,7 +349,7 @@ export function generateDemoData(): { products: DemoProduct[]; receipts: DemoRec
       purchaseDate: undefined,
       time: "17:10",
       receiptNumber: undefined,
-      totalAgorot: 2770,
+      totalAgorot: 2320,
       lines: [
         line("bread", 1, { aliasIndex: 0 }),
         { ...line("yogurt", 2, { aliasIndex: 1 }), confidence: "medium", lowConfidenceFields: ["quantity"] },

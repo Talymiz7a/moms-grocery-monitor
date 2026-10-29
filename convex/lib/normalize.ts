@@ -154,7 +154,7 @@ export function suggestMatches(
         conflict = conflicts;
       }
     }
-    if (best >= 0.3) {
+    if (best >= 0.45) {
       results.push({
         id: c.id,
         canonicalName: c.canonicalName,
