@@ -7,6 +7,7 @@ import { GroupedMonthChart, MonthLegend, type GridRow } from "../components/char
 import { ProductSearch } from "../components/ProductSearch";
 import { Button, Card, Chip, EmptyState, Loading, Notice, PageHeader, inputClass } from "../components/ui";
 import { exportChartPng, printDocument, tableToHtml, downloadCsv, type Table } from "../lib/exporters";
+import { MONTH_COLORS } from "../lib/chartColors";
 import { UNIT_LABELS, formatDateTime } from "../lib/format";
 import { useAppState } from "../state/AppState";
 
@@ -99,7 +100,7 @@ export function Analysis() {
                 </button>
               ))}
             </div>
-            <Button variant="secondary" disabled={view !== "chart"} onClick={() => chartRef.current && exportChartPng(chartRef.current, title, `product-frequency-${year}.png`)}>תמונה</Button>
+            <Button variant="secondary" disabled={view !== "chart"} onClick={() => chartRef.current && exportChartPng(chartRef.current, title, `product-frequency-${year}.png`, HEBREW_MONTHS.map((m, i) => ({ label: m, color: MONTH_COLORS[i] })))}>תמונה</Button>
             <Button
               variant="secondary"
               onClick={() => {

@@ -5,6 +5,7 @@ import { Alerts } from "./pages/Alerts";
 import { Dashboard } from "./pages/Dashboard";
 import { ProductDetail } from "./pages/ProductDetail";
 import { ProductsSettings } from "./pages/ProductsSettings";
+import { Reports } from "./pages/Reports";
 import { ReceiptDetail } from "./pages/ReceiptDetail";
 import { Receipts } from "./pages/Receipts";
 import { Review } from "./pages/Review";
@@ -23,6 +24,7 @@ export function App() {
         <Route path="/analysis" element={<Analysis />} />
         <Route path="/analysis/products/:id" element={<ProductDetail />} />
         <Route path="/alerts" element={<Alerts />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/products" element={<ProductsSettings />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -10,6 +10,7 @@ export const NAV_ITEMS = [
   { to: "/receipts", label: "קבלות ורכישות", icon: "receipt" },
   { to: "/analysis", label: "ניתוח מוצרים", icon: "chart" },
   { to: "/alerts", label: "התראות ובקרה", icon: "bell" },
+  { to: "/reports", label: "דוחות", icon: "file" },
   { to: "/settings", label: "הגדרות", icon: "settings" },
 ] as const;
 

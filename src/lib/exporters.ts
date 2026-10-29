@@ -14,7 +14,12 @@ function download(blob: Blob, fileName: string) {
 }
 
 /** Saves the first <svg> inside `container` as a PNG with a title line. */
-export async function exportChartPng(container: HTMLElement, title: string, fileName: string) {
+export async function exportChartPng(
+  container: HTMLElement,
+  title: string,
+  fileName: string,
+  legend: { label: string; color: string }[] = [],
+) {
   const svg = container.querySelector("svg.recharts-surface") as SVGSVGElement | null;
   if (!svg) return;
   const { width, height } = svg.getBoundingClientRect();
@@ -22,12 +27,14 @@ export async function exportChartPng(container: HTMLElement, title: string, file
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   clone.setAttribute("width", String(width));
   clone.setAttribute("height", String(height));
+  // Web fonts are not available inside an exported image; use a Hebrew-capable system font.
+  clone.setAttribute("font-family", "Arial, 'Noto Sans Hebrew', sans-serif");
   const xml = new XMLSerializer().serializeToString(clone);
   const img = new Image();
   img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
   await img.decode();
   const scale = 2;
-  const header = 56;
+  const header = legend.length ? 84 : 56;
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(width * scale);
   canvas.height = Math.ceil((height + header) * scale);
@@ -43,6 +50,16 @@ export async function exportChartPng(container: HTMLElement, title: string, file
   ctx.font = "13px Heebo, Arial, sans-serif";
   ctx.fillStyle = "#4a5565";
   ctx.fillText(`נוצר: ${formatDateTime(Date.now())}`, width - 12, 44);
+  // Legend, right to left.
+  let x = width - 12;
+  ctx.font = "13px Heebo, Arial, sans-serif";
+  for (const item of legend) {
+    ctx.fillStyle = item.color;
+    ctx.fillRect(x - 12, 62, 12, 12);
+    ctx.fillStyle = "#4a5565";
+    ctx.fillText(item.label, x - 18, 73);
+    x -= 18 + ctx.measureText(item.label).width + 16;
+  }
   ctx.drawImage(img, 0, header, width, height);
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/png"));
   if (blob) download(blob, fileName);

@@ -22,8 +22,8 @@ export function Receipts() {
   const { dataset } = useAppState();
   const [params, setParams] = useSearchParams();
   const filter = (FILTERS.find((f) => f.key === params.get("filter"))?.key ?? "all") as FilterKey;
-  const [fromText, setFromText] = useState("");
-  const [toText, setToText] = useState("");
+  const [fromText, setFromText] = useState(() => formatIsoDate(params.get("from") ?? ""));
+  const [toText, setToText] = useState(() => formatIsoDate(params.get("to") ?? ""));
   const from = parseDayFirstDate(fromText) ?? undefined;
   const to = parseDayFirstDate(toText) ?? undefined;
   const fromInvalid = fromText.trim() !== "" && !from;
