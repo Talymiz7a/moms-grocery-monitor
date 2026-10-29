@@ -5,15 +5,43 @@ mother: receipt upload and reading, purchase-frequency analysis and review of un
 purchases. It is a monitoring tool, not a budgeting app — an anomaly is not proof of
 misconduct; the app shows evidence and supports human review.
 
-**Status: Stage 1 of 5 (preview, not approved for real data).**
+**Status: Stages 1–5 built — preview with fictional demo data, awaiting review and approval.
+Real data and paid OCR are disabled until approved.**
 
 | Stage | Scope | Status |
 |---|---|---|
 | 1 | Database, Hebrew interface, navigation, upload, OCR, manual review | ✅ built |
-| 2 | Searches, frequency calculations, grouped monthly chart, quantity analysis, history | planned |
-| 3 | Expected shopping rules, anomalies, duplicate alerts, review statuses | planned |
-| 4 | Dashboard, reports, exports | planned |
-| 5 | Five-month demo verification and end-to-end testing | planned |
+| 2 | Searches, frequency calculations, grouped monthly chart, quantity analysis, history | ✅ built |
+| 3 | Expected shopping rules, anomalies, duplicate alerts, review statuses | ✅ built |
+| 4 | Dashboard, reports, exports | ✅ built |
+| 5 | Five-month demo verification and end-to-end testing | ✅ built — awaiting your review |
+
+## Screens
+
+| Route | Screen |
+|---|---|
+| `/` | Dashboard — period filter (all / month / year / range), summary cards, monthly frequency chart, top products, unusual patterns, recent receipts, receipts awaiting review |
+| `/upload` | Upload Receipt — camera, image or PDF; or manual entry |
+| `/receipts`, `/receipts/:id`, `/receipts/:id/review` | Receipts & Purchases — date search with item view, product search, sorting, details, review/edit |
+| `/analysis`, `/analysis/products/:id` | Product Analysis — grouped products × 12 months chart, product history |
+| `/alerts` | Alerts & Review — evidence, statuses, notes, history |
+| `/reports` | Reports & export — CSV, Excel, PDF (A4 landscape) |
+| `/settings`, `/settings/products` | Settings — sensitivity, products, expected shopping list, merge/split |
+
+## Anomaly detection (transparent and configurable)
+
+| Alert | Rule (from the expected shopping list) | Statistical (own history, needs enough data) |
+|---|---|---|
+| Excessive frequency | more purchases in a month than *max per month* | month above mean + k·sd of prior months and ≥ ratio × mean (≥ 3 prior months) |
+| Large quantity | quantity above *max quantity* | ≥ multiplier × median of prior purchases and above the prior maximum (≥ 5 prior) |
+| Close together | fewer days than *minimum interval* | far shorter than the median interval and rare in this product's history (≥ 5 prior intervals) |
+| New product | — | first purchase after the first 30 days of data (notice) |
+| Not expected | product marked *not expected* / *manual review* | — |
+| Duplicate receipt | same file fingerprint / receipt number + store / store + date + total + items | — |
+| High total | — | above the same store's median + k·MAD (≥ 8 prior receipts), read with basket size |
+
+Sensitivity (low / medium / high) sets k and the multipliers (`convex/lib/anomalies.ts`).
+Explained alerts stay closed unless their evidence changes. Alerts never infer intent.
 
 ## Architecture
 

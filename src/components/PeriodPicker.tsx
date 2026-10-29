@@ -19,12 +19,12 @@ export function periodRange(p: Period, dataFrom?: string | null, dataTo?: string
     const from = p.fromText ? parseDayFirstDate(p.fromText) : null;
     const to = p.toText ? parseDayFirstDate(p.toText) : null;
     if (!from || !to || from > to) return { label: "טווח לא תקין", valid: false };
-    return { from, to, label: `${formatIsoDate(from)} – ${formatIsoDate(to)}`, valid: true };
+    return { from, to, label: `מ-${formatIsoDate(from)} עד ${formatIsoDate(to)}`, valid: true };
   }
   return {
     from: undefined,
     to: undefined,
-    label: dataFrom && dataTo ? `כל התקופה (${formatIsoDate(dataFrom)} – ${formatIsoDate(dataTo)})` : "כל התקופה",
+    label: dataFrom && dataTo ? `כל התקופה: מ-${formatIsoDate(dataFrom)} עד ${formatIsoDate(dataTo)}` : "כל התקופה",
     valid: true,
   };
 }

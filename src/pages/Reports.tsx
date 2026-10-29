@@ -40,7 +40,7 @@ export function Reports() {
   if (!base.dataFrom) return <EmptyState title="אין עדיין נתונים לדוחות" />;
 
   const created = formatDateTime(Date.now());
-  const periodText = from && to ? `${formatIsoDate(from)} – ${formatIsoDate(to)}` : "";
+  const periodText = from && to ? `מ-${formatIsoDate(from)} עד ${formatIsoDate(to)}` : "";
   const meta = [`מעקב קניות אמא — דוח`, `תקופה: ${periodText}`, `נוצר: ${created}`, dataset === "demo" ? "נתוני הדגמה בדיוניים" : ""].filter(Boolean);
 
   const tables: Record<TabKey, Table | null> = {
@@ -100,8 +100,8 @@ export function Reports() {
       <Card className="mb-4 p-4">
         <PeriodPicker value={period} onChange={setPeriod} months={base.months} />
         <p className="mt-2 text-sm text-ink-soft">
-          תקופה: <span className="num">{periodText}</span>
-          {data && <> · השוואה לתקופה הקודמת: <span className="num">{formatIsoDate(data.previous.from)} – {formatIsoDate(data.previous.to)}</span></>}
+          תקופה: {periodText}
+          {data && <> · השוואה לתקופה הקודמת: מ-<span className="num">{formatIsoDate(data.previous.from)}</span> עד <span className="num">{formatIsoDate(data.previous.to)}</span></>}
         </p>
       </Card>
 

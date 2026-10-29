@@ -341,3 +341,90 @@ describe("alerts workflow (Stage 3)", () => {
     expect(audit.some((a) => a.action === "product.split")).toBe(true);
   });
 });
+
+describe("end-to-end data checks (Stage 5)", () => {
+  test("manual correction of a draft recalculates analytics and alerts", async () => {
+    const t = convexTest(schema, modules);
+    await t.action(internal.demo.seed, {});
+    const before = await t.query(api.analytics.periodSummary, { dataset: "demo" });
+    const drafts = await t.query(api.receipts.list, { dataset: "demo", filter: "draft" });
+    const lowConf = drafts.find((r) => r.purchaseDate === "2026-10-25")!;
+    const detail = (await t.query(api.receipts.get, { receiptId: lowConf._id }))!;
+    const products = await t.query(api.products.list, { dataset: "demo" });
+    const byName = (n: string) => products.find((p) => p.canonicalName === n)!._id;
+    const fix: Record<string, string> = { "חלב טרי 3 אחו 1 ל": "חלב 3% 1 ליטר", "ביצים L 12": "ביצים L תבנית 12", "קוטג׳ 5%": "קוטג' 5% 250 גרם" };
+    const lines = detail.items.map((i) => ({
+      originalDescription: i.originalDescription,
+      lineType: i.lineType,
+      quantity: i.quantity,
+      unit: i.unit,
+      unitPriceAgorot: i.unitPriceAgorot,
+      lineTotalAgorot: i.lineTotalAgorot,
+      discountAgorot: i.discountAgorot,
+      confidence: i.confidence,
+      lowConfidenceFields: i.lowConfidenceFields,
+      corrected: !!fix[i.originalDescription],
+      product: i.productId
+        ? { kind: "existing" as const, productId: i.productId }
+        : fix[i.originalDescription]
+          ? { kind: "existing" as const, productId: byName(fix[i.originalDescription]) }
+          : { kind: "none" as const },
+    }));
+    await t.mutation(api.receipts.saveReview, {
+      editorCode: CODE,
+      receiptId: lowConf._id,
+      header: { storeName: detail.receipt.storeName, purchaseDate: "2026-10-25", receiptNumber: detail.receipt.receiptNumber, totalAgorot: detail.receipt.totalAgorot },
+      lines,
+      finalize: true,
+    });
+    const after = await t.query(api.analytics.periodSummary, { dataset: "demo" });
+    expect(after.receiptCount).toBe(before.receiptCount + 1);
+    // Milk appears on two lines of this receipt but counts as ONE occasion.
+    const distinctProductsOnReceipt = new Set(lines.filter((l) => l.product.kind === "existing").map((l) => (l.product as { productId: string }).productId)).size;
+    expect(after.purchaseOccasions).toBe(before.purchaseOccasions + distinctProductsOnReceipt);
+    expect(after.dataTo).toBe("2026-10-25");
+    // Wordings learned as confirmed aliases.
+    const milk = (await t.query(api.products.list, { dataset: "demo" })).find((p) => p.canonicalName === "חלב 3% 1 ליטר")!;
+    expect(milk.aliases).toContain("חלב טרי 3 אחו 1 ל");
+    // Recompute uses the corrected data.
+    const res = await t.mutation(internal.alerts.recompute, { dataset: "demo" });
+    expect(res.candidates).toBeGreaterThan(0);
+  });
+
+  test("a receipt without a date is listed but excluded from analytics until a date is entered", async () => {
+    const t = convexTest(schema, modules);
+    await t.action(internal.demo.seed, {});
+    const s = await t.query(api.analytics.periodSummary, { dataset: "demo" });
+    const undated = (await t.query(api.receipts.list, { dataset: "demo" })).filter((r) => !r.purchaseDate);
+    expect(undated).toHaveLength(1);
+    expect(s.receiptCount).toBe(54);
+  });
+
+  test("discounts, returns and negative lines reconcile to the printed total", async () => {
+    const t = convexTest(schema, modules);
+    await t.action(internal.demo.seed, {});
+    const july5 = (await t.query(api.receipts.list, { dataset: "demo", from: "2026-07-05", to: "2026-07-05" }))[0];
+    const d = (await t.query(api.receipts.get, { receiptId: july5._id }))!;
+    expect(d.items.some((i) => i.lineType === "return" && i.lineTotalAgorot < 0)).toBe(true);
+    expect(d.items.some((i) => i.lineType === "discount" && i.lineTotalAgorot < 0)).toBe(true);
+    expect(d.receipt.reconciliation?.status).toBe("match");
+  });
+
+  test("period filters and reports agree, and demo never leaks into real", async () => {
+    const t = convexTest(schema, modules);
+    await t.action(internal.demo.seed, {});
+    const sep = await t.query(api.analytics.periodSummary, { dataset: "demo", from: "2026-09-01", to: "2026-09-30" });
+    const report = await t.query(api.analytics.reportData, { dataset: "demo", from: "2026-06-01", to: "2026-10-31" });
+    const sepRow = report.monthlySummary.find((m) => m.month === "2026-09")!;
+    expect(sepRow.occasions).toBe(sep.purchaseOccasions);
+    expect(sepRow.receipts).toBe(sep.receiptCount);
+    const total = report.monthlySummary.reduce((s, m) => s + m.occasions, 0);
+    expect(total).toBe((await t.query(api.analytics.periodSummary, { dataset: "demo" })).purchaseOccasions);
+    expect(report.previous).toEqual({ from: "2025-12-30", to: "2026-05-31" }); // same length (153 days), immediately before
+    expect(report.reviewedAlerts.length).toBe(2);
+    const real = await t.query(api.analytics.reportData, { dataset: "real", from: "2026-06-01", to: "2026-10-31" });
+    expect(real.comparison).toHaveLength(0);
+    expect(real.unresolvedAlerts).toHaveLength(0);
+    expect((await t.query(api.analytics.periodSummary, { dataset: "real" })).receiptCount).toBe(0);
+  });
+});

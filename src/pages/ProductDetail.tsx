@@ -78,7 +78,7 @@ export function ProductDetail() {
         actions={
           <>
             <LinkButton to="/analysis" icon="back" variant="ghost">לכל המוצרים</LinkButton>
-            <button type="button" className="inline-flex min-h-11 items-center rounded-xl border border-brand-500 px-4 font-medium text-brand-700" onClick={() => printDocument(p.canonicalName, `<h1>היסטוריית מוצר: ${p.canonicalName}</h1><p class="meta">${summary.firstDate ? `${formatIsoDate(summary.firstDate)}–${formatIsoDate(summary.lastDate)}` : ""} · ${created}</p>${tableToHtml(monthlyTable)}${tableToHtml(purchasesTable)}`)}>PDF / הדפסה</button>
+            <button type="button" className="inline-flex min-h-11 items-center rounded-xl border border-brand-500 px-4 font-medium text-brand-700" onClick={() => printDocument(p.canonicalName, `<h1>היסטוריית מוצר: ${p.canonicalName}</h1><p class="meta">${summary.firstDate ? `מ-${formatIsoDate(summary.firstDate)} עד ${formatIsoDate(summary.lastDate)}` : ""} · ${created}</p>${tableToHtml(monthlyTable)}${tableToHtml(purchasesTable)}`)}>PDF / הדפסה</button>
             <button type="button" className="inline-flex min-h-11 items-center rounded-xl border border-brand-500 px-4 font-medium text-brand-700" onClick={() => downloadCsv(purchasesTable, `product-history.csv`, [`היסטוריית מוצר: ${p.canonicalName}`, created])}>CSV</button>
           </>
         }
