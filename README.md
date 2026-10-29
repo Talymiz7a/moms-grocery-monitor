@@ -49,6 +49,25 @@ misconduct; the app shows evidence and supports human review.
   data, but every change requires `EDITOR_CODE`. Must be replaced by real
   authentication before real receipts are used.
 
+## Deployments
+
+| Service | Resource | Notes |
+|---|---|---|
+| Convex | project `moms-grocery-monitor` (team `talymiz`) | production deployment backs the preview; dev deployment for development |
+| Vercel | project `moms-grocery-monitor` | preview: https://moms-grocery-monitor.vercel.app (demo data, read-only) |
+
+Deploy (from a machine logged in to both CLIs):
+
+```bash
+npx convex deploy                 # push backend functions/schema to Convex production
+npx convex run --prod demo:seed   # (re)load demo data — replaces demo records only
+npx vercel deploy                 # preview deployment of the static site
+```
+
+Vercel needs `VITE_CONVEX_URL` (the Convex production URL) in its Preview and
+Production environments. The Vercel build only runs `npm run build`; Convex is
+deployed separately.
+
 ## Environment variables
 
 Set in the **Convex dashboard → Settings → Environment Variables** (never in the repo):
@@ -65,7 +84,7 @@ Set in **Vercel → Project → Settings → Environment Variables**:
 
 | Variable | Purpose |
 |---|---|
-| `CONVEX_DEPLOY_KEY` | Lets the Vercel build deploy Convex functions and set `VITE_CONVEX_URL`. |
+| `VITE_CONVEX_URL` | Convex production URL the website connects to (public value). |
 
 ## Development
 
