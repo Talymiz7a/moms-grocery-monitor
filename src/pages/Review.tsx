@@ -426,6 +426,11 @@ export function Review() {
         {ocrProgress && <OcrProgressBar p={ocrProgress} />}
         {r.ocrStatus === "failed" && <Notice tone="review" title="הקריאה האוטומטית נכשלה">{r.ocrError} — אפשר להזין ידנית.</Notice>}
         {r.ocrStatus === "running" && <Notice tone="brand" title="הקבלה נקראת כעת…">התוצאה תופיע כאן אוטומטית.</Notice>}
+        {isEditor && r.fileId && !verified && status && !gemini?.enabled && (
+          <Notice tone="review" title="הקריאה החכמה (Gemini) עדיין לא הוגדרה בשרת">
+            חסר המפתח GEMINI_API_KEY בהגדרות Convex (Production). בינתיים אפשר להשתמש בקריאה החינמית במכשיר או להזין ידנית.
+          </Notice>
+        )}
         {r.fileId && r.ocrStatus === "not_run" && !status?.ocrEnabled && !gemini?.enabled && !canFreeOcr && (
           <Notice tone="neutral" title="אין קריאה אוטומטית לקובץ זה">
             אפשר להזין את פרטי הקבלה ידנית לפי הקובץ.

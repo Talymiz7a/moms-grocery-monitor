@@ -12,6 +12,12 @@ export function ocrConfig() {
 export const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"];
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
+/** The Gemini key with stray spaces or quotes from pasting removed. */
+export function geminiApiKey(): string | undefined {
+  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
+  return key || undefined;
+}
+
 /** The app's own cap on Gemini receipt readings per calendar month (UTC). */
 export const GEMINI_MONTHLY_LIMIT = 30;
 
@@ -29,7 +35,7 @@ export const DEFAULT_GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash",
  * beyond the free limits are refused by Google instead of charged.
  */
 export function geminiConfig() {
-  const enabled = !!process.env.GEMINI_API_KEY && process.env.GEMINI_OCR_ENABLED !== "false";
+  const enabled = !!geminiApiKey() && process.env.GEMINI_OCR_ENABLED?.trim().toLowerCase() !== "false";
   const preferred = process.env.GEMINI_MODEL?.trim();
   const models = preferred ? [preferred, ...DEFAULT_GEMINI_MODELS.filter((m) => m !== preferred)] : DEFAULT_GEMINI_MODELS;
   return { enabled, models, monthlyLimit: GEMINI_MONTHLY_LIMIT };

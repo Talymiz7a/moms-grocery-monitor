@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
 import { requireEditor } from "./lib/access";
-import { geminiConfig } from "./lib/config";
+import { geminiApiKey, geminiConfig } from "./lib/config";
 import {
   GEMINI_API_BASE,
   GEMINI_FILE_TYPES,
@@ -53,7 +53,7 @@ export const extract = action({
         try {
           const res = await fetch(`${GEMINI_API_BASE}/models/${encodeURIComponent(model)}:generateContent`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
+            headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey()! },
             body,
             signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
           });

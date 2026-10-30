@@ -75,12 +75,21 @@ export function Settings() {
 
         <Card>
           <h2 className="mb-3 text-xl font-bold">קריאה אוטומטית של קבלות (OCR)</h2>
-          {status === undefined ? null : status.ocrEnabled ? (
-            <Notice tone="ok" title="פעילה">מודל: {status.ocrModel}</Notice>
-          ) : (
-            <Notice tone="neutral" title="כבויה">
-              הקריאה האוטומטית משתמשת ב-Claude (שירות בתשלום) ותופעל רק לאחר אישורך. עד אז מזינים פרטי קבלות ידנית.
-            </Notice>
+          {status === undefined ? null : (
+            <div className="space-y-3">
+              {status.gemini.enabled ? (
+                <Notice tone="ok" title="קריאה חכמה (Gemini, שכבה חינמית) — פעילה">
+                  נוצלו החודש <span className="num">{status.gemini.usedThisMonth}</span> מתוך <span className="num">{status.gemini.monthlyLimit}</span> קריאות. ללא חיוב: המפתח שייך לפרויקט Google ללא חשבון חיוב.
+                </Notice>
+              ) : (
+                <Notice tone="review" title="קריאה חכמה (Gemini, שכבה חינמית) — לא הוגדרה">
+                  חסר המשתנה GEMINI_API_KEY בהגדרות השרת (Convex → Production → Settings → Environment Variables). עד שיוגדר זמינות הקריאה החינמית במכשיר (Tesseract) והזנה ידנית.
+                </Notice>
+              )}
+              <Notice tone="neutral" title="קריאה בתשלום (Claude)">
+                {status.ocrEnabled ? `פעילה · מודל: ${status.ocrModel}` : "כבויה, ולא תופעל ללא אישורך."}
+              </Notice>
+            </div>
           )}
         </Card>
 

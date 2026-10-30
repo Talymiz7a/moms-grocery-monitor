@@ -1,8 +1,8 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalQuery, mutation, query } from "./_generated/server";
 import { isEditorCodeValid } from "./lib/access";
 import { geminiUsedThisMonth } from "./aiUsage";
-import { geminiConfig, ocrConfig } from "./lib/config";
+import { geminiApiKey, geminiConfig, ocrConfig } from "./lib/config";
 import { fileLinkSecret } from "./lib/fileLinks";
 
 /** Server configuration the UI needs (never returns secrets). */
@@ -29,5 +29,27 @@ export const verifyEditorCode = mutation({
   args: { code: v.string() },
   handler: async (_ctx, { code }) => {
     return { valid: isEditorCodeValid(code) };
+  },
+});
+
+/**
+ * Configuration check for the Gemini reader, run from the CLI
+ * (`npx convex run --prod app:geminiDiagnostics`). Reports variable names and
+ * the key's shape only — never its value.
+ */
+export const geminiDiagnostics = internalQuery({
+  args: {},
+  handler: async () => {
+    const key = geminiApiKey();
+    const raw = process.env.GEMINI_API_KEY;
+    return {
+      relatedVariableNames: Object.keys(process.env).filter((n) => /GEMINI|GOOGLE|GENAI/i.test(n)).sort(),
+      keySet: !!key,
+      keyHadSpacesOrQuotes: !!raw && raw !== key,
+      keyLength: key?.length ?? 0,
+      keyLooksLikeGoogleKey: !!key && /^AIza[0-9A-Za-z_-]{30,}$/.test(key),
+      switchedOff: process.env.GEMINI_OCR_ENABLED?.trim().toLowerCase() === "false",
+      enabled: geminiConfig().enabled,
+    };
   },
 });
