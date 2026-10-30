@@ -28,6 +28,31 @@ Real data and paid OCR are disabled until approved.**
 | `/reports` | Reports & export — CSV, Excel, PDF (A4 landscape) |
 | `/settings`, `/settings/products` | Settings — sensitivity, products, expected shopping list, merge/split |
 
+## Smart receipt reading (Gemini API free tier)
+
+Receipts can be read with Google Gemini, which understands receipt structure
+(items, quantity lines, weighed produce, discounts, total) rather than only
+characters. It uses the **free tier** of the Gemini Developer API: the key comes
+from a Google AI Studio project **without billing**, so requests beyond Google's
+free limits are refused (HTTP 429), never charged.
+
+- `convex/geminiOcr.ts` — action that sends the receipt image (JPEG copy, or the
+  original HEIC/PDF) to `generateContent` with a JSON response schema, and stores
+  the result as a **draft**. The key is sent in a header from the Convex server;
+  it never reaches the browser.
+- `convex/lib/gemini.ts` — request, response schema (same structure as the Claude
+  reader), response validation, and the app's own checks: lines where
+  quantity × unit price ≠ line total, a total the lines don't add up to, and
+  future dates are flagged. Values are never changed.
+- `convex/aiUsage.ts` — the app's own cap of **30 readings per calendar month**
+  (counted before each request, failures included).
+- Models are tried in order (`gemini-flash-latest`, `gemini-2.5-flash`,
+  `gemini-flash-lite-latest`; `GEMINI_MODEL` puts another first) because free-tier
+  availability differs by model.
+- Under the free-tier terms Google may use submitted content to improve its
+  products. Nothing counts in analytics or alerts until a person approves the
+  receipt on the review screen. Tesseract (below) remains available as a fallback.
+
 ## Free receipt reading (Tesseract.js — experimental prototype)
 
 Receipt photos can be read **for free, in the browser** with Tesseract.js (Hebrew + English).
@@ -83,7 +108,9 @@ Explained alerts stay closed unless their evidence changes. Alerts never infer i
 - **Backend & storage:** [Convex](https://convex.dev) — database, file storage for
   receipts, server functions (`convex/`).
 - **Hosting:** Vercel (static build; `vercel.json` deploys Convex functions then builds).
-- **OCR:** Claude via the Anthropic API (`convex/ocr.ts`), **disabled by default**.
+- **Receipt reading:** Gemini API free tier (`convex/geminiOcr.ts`), on when
+  `GEMINI_API_KEY` is set; Tesseract.js in the browser as a fallback; Claude via the
+  Anthropic API (`convex/ocr.ts`), paid and **disabled by default**.
 
 ### Key rules implemented
 
@@ -137,6 +164,9 @@ Set in the **Convex dashboard → Settings → Environment Variables** (never in
 |---|---|---|
 | `EDITOR_CODE` | yes | Code that unlocks editing (min. 8 chars). Unset = everything read-only. |
 | `FILE_LINK_SECRET` | yes | Random secret (≥16 chars) for signing receipt-file links. |
+| `GEMINI_API_KEY` | no | Key from Google AI Studio, created in a project **without billing** (free tier). Enables smart reading. |
+| `GEMINI_OCR_ENABLED` | no | `false` switches Gemini reading off without removing the key. |
+| `GEMINI_MODEL` | no | Model tried first (others follow as fallbacks). |
 | `OCR_ENABLED` | no | `true` to allow paid Claude OCR calls. Off by default. |
 | `ANTHROPIC_API_KEY` | no | Anthropic API key, needed only when `OCR_ENABLED=true`. |
 | `OCR_MODEL` | no | Model ID. Default `claude-opus-5-5`. |

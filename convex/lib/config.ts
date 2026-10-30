@@ -11,3 +11,26 @@ export function ocrConfig() {
 
 export const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"];
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+/** The app's own cap on Gemini receipt readings per calendar month (UTC). */
+export const GEMINI_MONTHLY_LIMIT = 30;
+
+/**
+ * Models tried in order. Free-tier availability differs by model, so when one
+ * is unavailable or has no free quota the next is tried. "-latest" aliases
+ * follow Google's current Flash models.
+ */
+export const DEFAULT_GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest"];
+
+/**
+ * Receipt reading with the Gemini API free tier. On when GEMINI_API_KEY is set
+ * in the Convex environment (GEMINI_OCR_ENABLED=false switches it off). The
+ * key must come from a Google AI Studio project without billing, so requests
+ * beyond the free limits are refused by Google instead of charged.
+ */
+export function geminiConfig() {
+  const enabled = !!process.env.GEMINI_API_KEY && process.env.GEMINI_OCR_ENABLED !== "false";
+  const preferred = process.env.GEMINI_MODEL?.trim();
+  const models = preferred ? [preferred, ...DEFAULT_GEMINI_MODELS.filter((m) => m !== preferred)] : DEFAULT_GEMINI_MODELS;
+  return { enabled, models, monthlyLimit: GEMINI_MONTHLY_LIMIT };
+}

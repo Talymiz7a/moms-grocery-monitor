@@ -205,6 +205,15 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_dataset", ["dataset"]),
 
+  // Counts external AI receipt readings per month, across both datasets,
+  // to enforce the app's own monthly limit.
+  aiUsage: defineTable({
+    provider: v.literal("gemini"),
+    month: v.string(), // "YYYY-MM" (UTC)
+    count: v.number(),
+    updatedAt: v.number(),
+  }).index("by_provider_month", ["provider", "month"]),
+
   auditLog: defineTable({
     dataset: datasetValidator,
     at: v.number(),

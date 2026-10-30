@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as aiUsage from "../aiUsage.js";
 import type * as alerts from "../alerts.js";
 import type * as analytics from "../analytics.js";
 import type * as app from "../app.js";
@@ -15,6 +16,7 @@ import type * as demo from "../demo.js";
 import type * as fileAccess from "../fileAccess.js";
 import type * as files from "../files.js";
 import type * as freeOcr from "../freeOcr.js";
+import type * as geminiOcr from "../geminiOcr.js";
 import type * as http from "../http.js";
 import type * as lib_access from "../lib/access.js";
 import type * as lib_analytics from "../lib/analytics.js";
@@ -24,6 +26,7 @@ import type * as lib_dates from "../lib/dates.js";
 import type * as lib_demoData from "../lib/demoData.js";
 import type * as lib_facts from "../lib/facts.js";
 import type * as lib_fileLinks from "../lib/fileLinks.js";
+import type * as lib_gemini from "../lib/gemini.js";
 import type * as lib_money from "../lib/money.js";
 import type * as lib_normalize from "../lib/normalize.js";
 import type * as lib_ocrMerge from "../lib/ocrMerge.js";
@@ -46,6 +49,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aiUsage: typeof aiUsage;
   alerts: typeof alerts;
   analytics: typeof analytics;
   app: typeof app;
@@ -53,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   fileAccess: typeof fileAccess;
   files: typeof files;
   freeOcr: typeof freeOcr;
+  geminiOcr: typeof geminiOcr;
   http: typeof http;
   "lib/access": typeof lib_access;
   "lib/analytics": typeof lib_analytics;
@@ -62,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   "lib/demoData": typeof lib_demoData;
   "lib/facts": typeof lib_facts;
   "lib/fileLinks": typeof lib_fileLinks;
+  "lib/gemini": typeof lib_gemini;
   "lib/money": typeof lib_money;
   "lib/normalize": typeof lib_normalize;
   "lib/ocrMerge": typeof lib_ocrMerge;

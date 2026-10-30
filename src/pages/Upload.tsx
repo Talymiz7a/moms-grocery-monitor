@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
@@ -42,7 +42,8 @@ export function Upload() {
   const createDraft = useMutation(api.files.createDraftFromUpload);
   const createManual = useMutation(api.files.createManualDraft);
   const saveFreeOcr = useMutation(api.freeOcr.saveResult);
-  const [freeOcr, setFreeOcr] = useState(true);
+  const readWithGemini = useAction(api.geminiOcr.extract);
+  const [method, setMethod] = useState<ReadMethod | null>(null);
   const [progress, setProgress] = useState<OcrProgress | null>(null);
   const navigate = useNavigate();
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -97,7 +98,18 @@ export function Upload() {
         setDuplicate({ receiptId: res.receiptId, reason: res.duplicate.reason, originalId: res.duplicate.id });
         return;
       }
-      if (freeOcr && canReadFree(file)) {
+      const chosen = effectiveMethod;
+      if (chosen === "gemini") {
+        setProgress({ label: "Gemini קורא את הקבלה — בדרך כלל 10–40 שניות", fraction: 0.5 });
+        try {
+          await readWithGemini({ editorCode, receiptId: res.receiptId });
+          navigate(`/receipts/${res.receiptId}/review`);
+        } catch (e) {
+          navigate(`/receipts/${res.receiptId}/review`, { state: { ocrError: errorMessage(e) } });
+        }
+        return;
+      }
+      if (chosen === "free") {
         try {
           const { parsed, durationMs } = await readReceiptFree(file, setProgress);
           await saveFreeOcr({ editorCode, receiptId: res.receiptId, ...toSaveArgs(parsed, durationMs) });
@@ -126,6 +138,14 @@ export function Upload() {
       setError(errorMessage(e));
     }
   }
+
+  const gemini = status?.gemini;
+  const geminiLeft = gemini ? Math.max(0, gemini.monthlyLimit - gemini.usedThisMonth) : 0;
+  const geminiAvailable = !!gemini?.enabled && geminiLeft > 0;
+  const options: ReadMethod[] = file
+    ? [...(geminiAvailable && canReadGemini(file) ? (["gemini"] as const) : []), ...(canReadFree(file) ? (["free"] as const) : []), "none"]
+    : [];
+  const effectiveMethod: ReadMethod = method && options.includes(method) ? method : (options[0] ?? "none");
 
   return (
     <>
@@ -185,22 +205,26 @@ export function Upload() {
                 נבחר: {file.name} <span className="num text-ink-soft">({(file.size / 1024 / 1024).toFixed(1)} MB)</span>
               </p>
               {preview && <img src={preview} alt="תצוגה מקדימה של הקבלה" className="max-h-96 rounded-xl border border-line" />}
-              {canReadFree(file) ? (
-                <label className="flex min-h-11 items-start gap-3 rounded-xl border border-line p-3">
-                  <input type="checkbox" className="mt-1 size-5" checked={freeOcr} onChange={(e) => setFreeOcr(e.target.checked)} disabled={busy} />
-                  <span>
-                    <span className="font-semibold">קריאה אוטומטית חינמית במכשיר (ניסוי)</span>
-                    <span className="block text-sm text-ink-soft">
-                      הקבלה נקראת כאן בדפדפן, ללא שירות חיצוני וללא עלות. לוקח בדרך כלל 20–60 שניות. כל השדות נבדקים ומתוקנים במסך הבדיקה לפני האישור.
+              <fieldset className="space-y-2" disabled={busy}>
+                <legend className="mb-1 font-semibold">איך לקרוא את הקבלה?</legend>
+                {options.map((m) => (
+                  <label key={m} className={`flex min-h-11 items-start gap-3 rounded-xl border p-3 ${effectiveMethod === m ? "border-brand-500 bg-brand-50" : "border-line"}`}>
+                    <input type="radio" name="read-method" className="mt-1 size-5" checked={effectiveMethod === m} onChange={() => setMethod(m)} />
+                    <span>
+                      <span className="font-semibold">{METHOD_TEXT[m].title}</span>
+                      <span className="block text-sm text-ink-soft">
+                        {m === "gemini" ? `${METHOD_TEXT[m].body} נוצלו החודש ${gemini?.usedThisMonth ?? 0} מתוך ${gemini?.monthlyLimit ?? 0}.` : METHOD_TEXT[m].body}
+                      </span>
                     </span>
-                  </span>
-                </label>
-              ) : (
-                <p className="text-sm text-ink-soft">קריאה אוטומטית חינמית זמינה לתמונות בלבד (לא PDF). את פרטי הקבלה מזינים במסך הבדיקה.</p>
+                  </label>
+                ))}
+              </fieldset>
+              {gemini?.enabled && geminiLeft === 0 && (
+                <p className="text-sm text-review-700">נוצלו כל {gemini.monthlyLimit} הקריאות החכמות לחודש זה. אפשר להשתמש בקריאה החינמית במכשיר או להזין ידנית.</p>
               )}
               {progress && <OcrProgressBar p={progress} />}
               <div className="flex flex-wrap gap-2">
-                <Button icon="upload" onClick={upload} disabled={busy}>{busy ? (progress ? "קורא את הקבלה…" : "מעלה…") : freeOcr && canReadFree(file) ? "העלאה וקריאה אוטומטית" : "העלאה והמשך לבדיקה"}</Button>
+                <Button icon="upload" onClick={upload} disabled={busy}>{busy ? (progress ? "קורא את הקבלה…" : "מעלה…") : effectiveMethod === "none" ? "העלאה והמשך לבדיקה" : "העלאה וקריאה אוטומטית"}</Button>
                 <Button variant="ghost" onClick={() => setFile(null)} disabled={busy}>ביטול</Button>
               </div>
             </div>
@@ -219,12 +243,35 @@ export function Upload() {
           )}
         </Card>
         <Notice tone="neutral" title="על הקריאה האוטומטית">
-          הקריאה החינמית (Tesseract) רצה במכשיר שלך — התמונה לא נשלחת לשירות קריאה חיצוני. היא מדויקת פחות משירות בתשלום: מחירים וסכומים נקראים בדרך כלל טוב, שמות מוצרים לעיתים בשגיאות. שדות לא ודאיים מסומנים בצהוב.
-          {status?.ocrEnabled ? " קריאה בתשלום (Claude) זמינה גם היא במסך הבדיקה." : " קריאה בתשלום כבויה."}
+          {gemini?.enabled
+            ? `הקריאה החכמה שולחת את תמונת הקבלה ל-Google Gemini בשכבה החינמית (ללא חיוב), עד ${gemini.monthlyLimit} קריאות בחודש. לפי תנאי השכבה החינמית Google רשאית להשתמש בתוכן לשיפור שירותיה. `
+            : "הקריאה החכמה (Gemini) עדיין לא הוגדרה. "}
+          הקריאה החינמית במכשיר (Tesseract) לא שולחת את התמונה לשום שירות, אך מדויקת פחות. בכל מקרה התוצאה נשמרת כטיוטה בלבד ולא נספרת עד שתאשרו אותה במסך הבדיקה.
         </Notice>
       </div>
     </>
   );
+}
+
+type ReadMethod = "gemini" | "free" | "none";
+
+const METHOD_TEXT: Record<ReadMethod, { title: string; body: string }> = {
+  gemini: {
+    title: "קריאה חכמה עם Gemini (מומלץ, חינם)",
+    body: "בינה מלאכותית של Google מזהה את מבנה הקבלה: מוצרים, כמויות, מחירים והנחות.",
+  },
+  free: {
+    title: "קריאה חינמית במכשיר (Tesseract, ניסוי)",
+    body: "רצה כאן בדפדפן, ללא שירות חיצוני. לוקח 20–60 שניות ומדויקת פחות.",
+  },
+  none: {
+    title: "בלי קריאה אוטומטית",
+    body: "מזינים את הפריטים ידנית במסך הבדיקה, מול תמונת הקבלה.",
+  },
+};
+
+function canReadGemini(file: File) {
+  return /^image\/(jpeg|png|webp|heic|heif)$|^application\/pdf$/.test(file.type);
 }
 
 function canReadFree(file: File) {

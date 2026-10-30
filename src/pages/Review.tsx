@@ -1,6 +1,6 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { suggestMatches, type MatchSuggestion } from "../../convex/lib/normalize";
@@ -95,6 +95,9 @@ export function Review() {
   const setOverride = useMutation(api.receipts.setDuplicateOverride);
   const removeReceipt = useMutation(api.receipts.remove);
   const runOcr = useAction(api.ocr.extract);
+  const runGemini = useAction(api.geminiOcr.extract);
+  const location = useLocation();
+  const uploadOcrError = (location.state as { ocrError?: string } | null)?.ocrError;
   const saveFreeOcr = useMutation(api.freeOcr.saveResult);
   const getFileLink = useMutation(api.files.getFileLink);
   const [params] = useSearchParams();
@@ -273,6 +276,23 @@ export function Review() {
     }
   }
 
+  async function readWithGemini() {
+    if (!editorCode) return;
+    setError(null);
+    setMessage(null);
+    setBusy("gemini");
+    try {
+      setDirty(false);
+      const res = await runGemini({ editorCode, receiptId });
+      setInitKey(null);
+      setMessage(`Gemini קרא ${res.lines} שורות. בדקו את השדות המסומנים מול התמונה ואשרו כדי לשמור.`);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function overrideDuplicate(notDuplicate: boolean) {
     if (!editorCode) return;
     try {
@@ -295,6 +315,9 @@ export function Review() {
 
   const canOcr = isEditor && !!status?.ocrEnabled && !!r.fileId && !verified;
   const canFreeOcr = isEditor && !!r.fileId && !verified && (r.fileType ?? "").startsWith("image/");
+  const gemini = status?.gemini;
+  const geminiLeft = gemini ? gemini.monthlyLimit - gemini.usedThisMonth : 0;
+  const canGemini = isEditor && !!gemini?.enabled && !!r.fileId && !verified;
 
   async function readFree() {
     if (!editorCode) return;
@@ -347,6 +370,7 @@ export function Review() {
     setDirty(true);
   }
   const isFreeOcr = (r.ocrModel ?? "").includes("Tesseract");
+  const isGemini = (r.ocrModel ?? "").startsWith("Gemini");
 
   return (
     <>
@@ -386,6 +410,14 @@ export function Review() {
         {params.get("ocr") === "failed" && r.ocrStatus !== "done" && (
           <Notice tone="review" title="הקריאה האוטומטית החינמית לא הצליחה">אפשר לנסות שוב עם הכפתור "קריאה חינמית במכשיר", או להזין את הפריטים ידנית מול התמונה.</Notice>
         )}
+        {uploadOcrError && r.ocrStatus !== "done" && r.ocrStatus !== "failed" && (
+          <Notice tone="review" title="הקריאה החכמה לא הצליחה">{uploadOcrError} — אפשר לנסות שוב, להשתמש בקריאה החינמית במכשיר, או להזין ידנית.</Notice>
+        )}
+        {isGemini && !verified && (
+          <Notice tone="brand" icon="sparkle" title="נקרא עם Gemini — ממתין לאישורך">
+            בדקו כל שורה מול התמונה. שדות לא ודאיים, שורות שבהן כמות × מחיר אינה שווה לסכום, וסה"כ שאינו מתאים לשורות מסומנים בצהוב. דבר לא נספר בניתוחים ובהתראות עד שתאשרו.
+          </Notice>
+        )}
         {isFreeOcr && !verified && (
           <Notice tone="review" icon="alert" title="נקרא בקריאה חינמית במכשיר (ניסוי)">
             מחירים וסכומים נקראים בדרך כלל טוב; שמות מוצרים עלולים להיות משובשים. בדקו כל שורה מול התמונה — הצעות לשיוך מוצר מופיעות מתחת לכל שורה.
@@ -394,9 +426,9 @@ export function Review() {
         {ocrProgress && <OcrProgressBar p={ocrProgress} />}
         {r.ocrStatus === "failed" && <Notice tone="review" title="הקריאה האוטומטית נכשלה">{r.ocrError} — אפשר להזין ידנית.</Notice>}
         {r.ocrStatus === "running" && <Notice tone="brand" title="הקבלה נקראת כעת…">התוצאה תופיע כאן אוטומטית.</Notice>}
-        {r.fileId && r.ocrStatus === "not_run" && !status?.ocrEnabled && (
-          <Notice tone="neutral" title="הקריאה האוטומטית כבויה">
-            היא תופעל רק לאחר אישורך לשימוש בתשלום ב-API. בינתיים אפשר להזין את פרטי הקבלה ידנית לפי התמונה.
+        {r.fileId && r.ocrStatus === "not_run" && !status?.ocrEnabled && !gemini?.enabled && !canFreeOcr && (
+          <Notice tone="neutral" title="אין קריאה אוטומטית לקובץ זה">
+            אפשר להזין את פרטי הקבלה ידנית לפי הקובץ.
           </Notice>
         )}
         {r.ocrConfidence && r.ocrConfidence !== "high" && !verified && (
@@ -411,6 +443,11 @@ export function Review() {
           <Card>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-xl font-bold">פרטי הקבלה</h2>
+              {canGemini && (
+                <Button variant="secondary" icon="sparkle" onClick={readWithGemini} disabled={busy !== null || geminiLeft <= 0} title={`נוצלו החודש ${gemini?.usedThisMonth ?? 0} מתוך ${gemini?.monthlyLimit ?? 0} קריאות`}>
+                  {busy === "gemini" ? "Gemini קורא…" : geminiLeft <= 0 ? "נוצלו הקריאות החכמות לחודש" : isGemini ? "קריאה חכמה מחדש" : "קריאה חכמה (Gemini)"}
+                </Button>
+              )}
               {canFreeOcr && (
                 <Button variant="secondary" icon="sparkle" onClick={readFree} disabled={busy !== null}>
                   {busy === "free-ocr" ? "קורא…" : isFreeOcr ? "קריאה חינמית מחדש" : "קריאה חינמית במכשיר"}
