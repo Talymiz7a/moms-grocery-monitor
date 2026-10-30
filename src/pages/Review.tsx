@@ -1,6 +1,6 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { suggestMatches, type MatchSuggestion } from "../../convex/lib/normalize";
@@ -20,6 +20,9 @@ import {
   parseShekelInput,
 } from "../lib/format";
 import { useAppState } from "../state/AppState";
+import { readReceiptFree, toSaveArgs, type OcrProgress } from "../lib/freeOcr";
+import { parseAmount } from "../../convex/lib/ocrMerge";
+import { OcrProgressBar } from "./Upload";
 
 type Unit = Doc<"receiptItems">["unit"];
 type LineType = Doc<"receiptItems">["lineType"];
@@ -84,14 +87,18 @@ export function Review() {
   const { id } = useParams();
   const receiptId = id as Id<"receipts">;
   const navigate = useNavigate();
-  const { dataset, isEditor, editorCode } = useAppState();
-  const data = useQuery(api.receipts.get, { receiptId });
-  const products = useQuery(api.products.list, { dataset });
+  const { isEditor, editorCode, readArgs } = useAppState();
+  const data = useQuery(api.receipts.get, { receiptId, editorCode: editorCode ?? undefined });
+  const products = useQuery(api.products.list, { ...readArgs });
   const status = useQuery(api.app.status, {});
   const saveReview = useMutation(api.receipts.saveReview);
   const setOverride = useMutation(api.receipts.setDuplicateOverride);
   const removeReceipt = useMutation(api.receipts.remove);
   const runOcr = useAction(api.ocr.extract);
+  const saveFreeOcr = useMutation(api.freeOcr.saveResult);
+  const getFileLink = useMutation(api.files.getFileLink);
+  const [params] = useSearchParams();
+  const [ocrProgress, setOcrProgress] = useState<OcrProgress | null>(null);
 
   const [header, setHeader] = useState<HeaderState | null>(null);
   const [lines, setLines] = useState<EditLine[]>([]);
@@ -106,7 +113,7 @@ export function Review() {
   useEffect(() => {
     if (!data) return;
     const r = data.receipt;
-    const k = `${r._id}:${r.ocrStatus}:${data.items.length}`;
+    const k = `${r._id}:${r.ocrStatus}:${data.items.length}:${r.updatedAt}`;
     if (k === initKey || (dirty && initKey?.startsWith(r._id))) return;
     setHeader({
       storeName: r.storeName ?? "",
@@ -287,6 +294,59 @@ export function Review() {
   }
 
   const canOcr = isEditor && !!status?.ocrEnabled && !!r.fileId && !verified;
+  const canFreeOcr = isEditor && !!r.fileId && !verified && (r.fileType ?? "").startsWith("image/");
+
+  async function readFree() {
+    if (!editorCode) return;
+    setError(null);
+    setMessage(null);
+    setBusy("free-ocr");
+    try {
+      const link = await getFileLink({ receiptId, editorCode });
+      if (!link) throw new Error("no file");
+      const res = await fetch(link.url);
+      if (!res.ok) throw new Error(`file ${res.status}`);
+      const { parsed, durationMs } = await readReceiptFree(await res.blob(), setOcrProgress);
+      setDirty(false);
+      await saveFreeOcr({ editorCode, receiptId, ...toSaveArgs(parsed, durationMs) });
+      setInitKey(null);
+      setMessage(`הקבלה נקראה תוך ${Math.round(durationMs / 1000)} שניות: ${parsed.lines.length} שורות. בדקו כל שורה מול התמונה.`);
+    } catch (e) {
+      console.error(e);
+      setError("הקריאה החינמית נכשלה. אפשר לנסות שוב או להזין ידנית.");
+    } finally {
+      setBusy(null);
+      setOcrProgress(null);
+    }
+  }
+
+  function addUnrecognized(raw: string) {
+    // Amounts in the text become the line total; the rest is the description.
+    const tokens = raw.split(/\s+/);
+    const amounts = tokens.map((t) => parseAmount(t)).filter((x): x is number => x !== null);
+    const description = tokens.filter((t) => parseAmount(t) === null).join(" ").trim();
+    const total = amounts.length ? amounts[amounts.length - 1] : null;
+    setLines((ls) => [
+      ...ls,
+      {
+        key: newKey(),
+        originalDescription: description || raw,
+        lineType: total !== null && total < 0 ? "discount" : "item",
+        quantityText: "1",
+        unit: "unit",
+        unitPriceText: total !== null && total > 0 ? total.toFixed(2) : "",
+        lineTotalText: total !== null ? total.toFixed(2) : "",
+        discountText: "",
+        confidence: "low",
+        lowConfidenceFields: ["description", "lineTotal"],
+        corrected: false,
+        fromOcr: true,
+        product: { kind: "none" },
+      },
+    ]);
+    setDirty(true);
+  }
+  const isFreeOcr = (r.ocrModel ?? "").includes("Tesseract");
 
   return (
     <>
@@ -323,6 +383,15 @@ export function Review() {
             {isEditor && <button type="button" className="text-brand-700 underline" onClick={() => overrideDuplicate(false)}>ביטול הסימון</button>}
           </Notice>
         )}
+        {params.get("ocr") === "failed" && r.ocrStatus !== "done" && (
+          <Notice tone="review" title="הקריאה האוטומטית החינמית לא הצליחה">אפשר לנסות שוב עם הכפתור "קריאה חינמית במכשיר", או להזין את הפריטים ידנית מול התמונה.</Notice>
+        )}
+        {isFreeOcr && !verified && (
+          <Notice tone="review" icon="alert" title="נקרא בקריאה חינמית במכשיר (ניסוי)">
+            מחירים וסכומים נקראים בדרך כלל טוב; שמות מוצרים עלולים להיות משובשים. בדקו כל שורה מול התמונה — הצעות לשיוך מוצר מופיעות מתחת לכל שורה.
+          </Notice>
+        )}
+        {ocrProgress && <OcrProgressBar p={ocrProgress} />}
         {r.ocrStatus === "failed" && <Notice tone="review" title="הקריאה האוטומטית נכשלה">{r.ocrError} — אפשר להזין ידנית.</Notice>}
         {r.ocrStatus === "running" && <Notice tone="brand" title="הקבלה נקראת כעת…">התוצאה תופיע כאן אוטומטית.</Notice>}
         {r.fileId && r.ocrStatus === "not_run" && !status?.ocrEnabled && (
@@ -337,11 +406,16 @@ export function Review() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,22rem)] xl:grid-cols-[minmax(0,1fr)_26rem]">
         <div className="min-w-0 space-y-6">
           <Card>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-xl font-bold">פרטי הקבלה</h2>
+              {canFreeOcr && (
+                <Button variant="secondary" icon="sparkle" onClick={readFree} disabled={busy !== null}>
+                  {busy === "free-ocr" ? "קורא…" : isFreeOcr ? "קריאה חינמית מחדש" : "קריאה חינמית במכשיר"}
+                </Button>
+              )}
               {canOcr && (
                 <Button variant="secondary" icon="sparkle" onClick={readAutomatically} disabled={busy !== null}>
                   {busy === "ocr" ? "קורא…" : r.ocrStatus === "done" ? "קריאה מחדש" : "קריאה אוטומטית"}
@@ -391,6 +465,24 @@ export function Review() {
               <h2 className="text-xl font-bold">שורות ({lines.length})</h2>
               {unmatched > 0 && <Chip tone="review">{unmatched} שורות לא שויכו למוצר</Chip>}
             </div>
+            {!verified && data.ocrUnrecognized.length > 0 && (
+              <div className="mb-4 rounded-xl border border-review-200 bg-review-50 p-3">
+                <p className="font-semibold text-review-700">שורות שהקריאה לא הצליחה לפענח ({data.ocrUnrecognized.length})</p>
+                <p className="mb-2 text-sm text-ink-soft">בדקו מול התמונה. אם זו שורת מוצר — הוסיפו אותה ותקנו.</p>
+                <ul className="space-y-1">
+                  {data.ocrUnrecognized.map((u, i) => (
+                    <li key={i} className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-lg bg-white px-2 py-1 font-mono text-sm" dir="rtl">{u}</span>
+                      {isEditor && (
+                        <button type="button" className="min-h-9 text-sm font-medium text-brand-700 underline" onClick={() => addUnrecognized(u)}>
+                          הוספה כשורה
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <fieldset disabled={readOnly} className="space-y-3">
               {lines.map((l, i) => (
                 <LineEditor
@@ -444,7 +536,7 @@ export function Review() {
           )}
         </div>
 
-        <Card className="order-first h-fit xl:order-none xl:sticky xl:top-24">
+        <Card className="order-first h-fit lg:order-none lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-auto">
           <h2 className="mb-3 text-xl font-bold">הקבלה המקורית</h2>
           <ReceiptFileViewer receiptId={receiptId} hasFile={!!r.fileId} />
         </Card>

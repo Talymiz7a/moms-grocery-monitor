@@ -11,6 +11,9 @@ const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
   "X-Robots-Tag": "noindex",
+  // The signed, short-lived link is the authorization; allowing cross-origin
+  // reads lets the app fetch the original image for in-browser (free) OCR.
+  "Access-Control-Allow-Origin": "*",
 };
 
 http.route({

@@ -14,14 +14,14 @@ import { useAppState } from "../state/AppState";
 const PAGE = 10;
 
 export function Analysis() {
-  const { dataset } = useAppState();
+  const { readArgs } = useAppState();
   const navigate = useNavigate();
-  const years = useQuery(api.analytics.years, { dataset });
+  const years = useQuery(api.analytics.years, { ...readArgs });
   const [year, setYear] = useState<number | null>(null);
   useEffect(() => {
     if (year === null && years && years.length) setYear(years[0]);
   }, [years, year]);
-  const grid = useQuery(api.analytics.monthlyFrequency, year === null ? "skip" : { dataset, year });
+  const grid = useQuery(api.analytics.monthlyFrequency, year === null ? "skip" : { ...readArgs, year });
   const [selected, setSelected] = useState<{ _id: string; canonicalName: string }[]>([]);
   const [page, setPage] = useState(0);
   const [view, setView] = useState<"chart" | "table">("chart");

@@ -9,8 +9,8 @@ import { Chip, EmptyState, Loading } from "./ui";
 
 /** Every receipt in a date range with its lines, prices and linked alerts. */
 export function ItemsInRange({ from, to }: { from: string; to: string }) {
-  const { dataset } = useAppState();
-  const rows = useQuery(api.receipts.itemsInRange, { dataset, from, to });
+  const { readArgs } = useAppState();
+  const rows = useQuery(api.receipts.itemsInRange, { ...readArgs, from, to });
   if (rows === undefined) return <Loading />;
   if (rows.length === 0) return <EmptyState title="אין קבלות בטווח זה" />;
   return (

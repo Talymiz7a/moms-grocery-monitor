@@ -24,9 +24,9 @@ type SortKey = "date" | "store" | "quantity" | "price" | "spend";
 
 export function ProductDetail() {
   const { id } = useParams();
-  const { dataset } = useAppState();
+  const { readArgs } = useAppState();
   const navigate = useNavigate();
-  const data = useQuery(api.analytics.productDetail, { dataset, productId: id as Id<"products"> });
+  const data = useQuery(api.analytics.productDetail, { ...readArgs, productId: id as Id<"products"> });
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "date", dir: -1 });
 
   if (data === undefined) return <Loading />;

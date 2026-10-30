@@ -25,16 +25,16 @@ const sev = (s: string) => (s === "high" ? "גבוהה" : s === "medium" ? "בי
 const pct = (cur: number, prev: number) => (prev === 0 ? (cur === 0 ? "0%" : "חדש") : `${cur >= prev ? "+" : ""}${Math.round(((cur - prev) / prev) * 100)}%`);
 
 export function Reports() {
-  const { dataset } = useAppState();
-  const base = useQuery(api.analytics.periodSummary, { dataset });
+  const { dataset, readArgs } = useAppState();
+  const base = useQuery(api.analytics.periodSummary, { ...readArgs });
   const [period, setPeriod] = useState<Period>({ mode: "all" });
   const [tab, setTab] = useState<TabKey>("monthly");
   const [product, setProduct] = useState<{ _id: string; canonicalName: string } | null>(null);
   const range = periodRange(period, base?.dataFrom, base?.dataTo);
   const from = range.from ?? base?.dataFrom ?? undefined;
   const to = range.to ?? base?.dataTo ?? undefined;
-  const data = useQuery(api.analytics.reportData, from && to && range.valid ? { dataset, from, to } : "skip");
-  const productData = useQuery(api.analytics.productDetail, product ? { dataset, productId: product._id as Id<"products"> } : "skip");
+  const data = useQuery(api.analytics.reportData, from && to && range.valid ? { ...readArgs, from, to } : "skip");
+  const productData = useQuery(api.analytics.productDetail, product ? { ...readArgs, productId: product._id as Id<"products"> } : "skip");
 
   if (base === undefined) return <Loading />;
   if (!base.dataFrom) return <EmptyState title="אין עדיין נתונים לדוחות" />;

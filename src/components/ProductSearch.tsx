@@ -15,8 +15,8 @@ export function ProductSearch({
   placeholder?: string;
   exclude?: string[];
 }) {
-  const { dataset } = useAppState();
-  const products = useQuery(api.products.list, { dataset });
+  const { readArgs } = useAppState();
+  const products = useQuery(api.products.list, { ...readArgs });
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);

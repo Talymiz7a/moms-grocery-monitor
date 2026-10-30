@@ -1,13 +1,15 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { datasetValidator } from "./schema";
+import { requireDatasetRead } from "./lib/access";
 import { monthlyGrid, productHistory } from "./lib/analytics";
 import { loadFacts } from "./lib/facts";
 
 /** Years that have verified purchases, newest first. */
 export const years = query({
-  args: { dataset: datasetValidator },
-  handler: async (ctx, { dataset }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()) },
+  handler: async (ctx, { editorCode, dataset }) => {
+    requireDatasetRead(dataset, editorCode);
     const { receipts } = await loadFacts(ctx, dataset);
     return [...new Set(receipts.map((r) => Number(r.date.slice(0, 4))))].sort((a, b) => b - a);
   },
@@ -15,16 +17,18 @@ export const years = query({
 
 /** Products × 12 months: purchase occasions (distinct receipts), quantities and line appearances. */
 export const monthlyFrequency = query({
-  args: { dataset: datasetValidator, year: v.number() },
-  handler: async (ctx, { dataset, year }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()), year: v.number() },
+  handler: async (ctx, { editorCode, dataset, year }) => {
+    requireDatasetRead(dataset, editorCode);
     const { occasions, products } = await loadFacts(ctx, dataset);
     return monthlyGrid(occasions, products, year);
   },
 });
 
 export const productDetail = query({
-  args: { dataset: datasetValidator, productId: v.id("products") },
-  handler: async (ctx, { dataset, productId }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()), productId: v.id("products") },
+  handler: async (ctx, { editorCode, dataset, productId }) => {
+    requireDatasetRead(dataset, editorCode);
     const product = await ctx.db.get(productId);
     if (!product || product.dataset !== dataset) return null;
     if (product.mergedIntoId) return { mergedIntoId: product.mergedIntoId };
@@ -83,8 +87,9 @@ function overlaps(a: { periodStart?: string; periodEnd?: string }, from?: string
 
 /** Dashboard numbers for a period (all verified receipts when no period is given). */
 export const periodSummary = query({
-  args: { dataset: datasetValidator, from: v.optional(v.string()), to: v.optional(v.string()) },
-  handler: async (ctx, { dataset, from, to }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()), from: v.optional(v.string()), to: v.optional(v.string()) },
+  handler: async (ctx, { editorCode, dataset, from, to }) => {
+    requireDatasetRead(dataset, editorCode);
     const facts = await loadFacts(ctx, dataset);
     const receipts = facts.receipts.filter((r) => inRange(r.date, from, to));
     const occasions = facts.occasions.filter((o) => inRange(o.date, from, to));
@@ -169,8 +174,9 @@ function previousPeriod(from: string, to: string) {
 
 /** Data for the Reports screen: monthly summary, comparisons and alerts for a period. */
 export const reportData = query({
-  args: { dataset: datasetValidator, from: v.string(), to: v.string() },
-  handler: async (ctx, { dataset, from, to }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()), from: v.string(), to: v.string() },
+  handler: async (ctx, { editorCode, dataset, from, to }) => {
+    requireDatasetRead(dataset, editorCode);
     const facts = await loadFacts(ctx, dataset);
     const products = new Map(facts.products.map((p) => [p.id, p]));
     const receipts = facts.receipts.filter((r) => inRange(r.date, from, to));

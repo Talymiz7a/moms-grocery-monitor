@@ -27,8 +27,8 @@ function numOrUndef(s: string): number | undefined {
 }
 
 export function ProductsSettings() {
-  const { dataset, isEditor } = useAppState();
-  const products = useQuery(api.products.listWithExpectations, { dataset });
+  const { isEditor, readArgs } = useAppState();
+  const products = useQuery(api.products.listWithExpectations, { ...readArgs });
   const [filter, setFilter] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const shown = useMemo(() => {
@@ -114,7 +114,7 @@ function ProductEditor({ p, all, onDone }: { p: Product; all: Product[]; onDone:
     notes: e?.notes ?? "",
   });
   const [mergeTarget, setMergeTarget] = useState("");
-  const mergeCheck = useQuery(api.products.mergeCheck, mergeTarget ? { sourceId: p._id, targetId: mergeTarget as Id<"products"> } : "skip");
+  const mergeCheck = useQuery(api.products.mergeCheck, mergeTarget ? { sourceId: p._id, targetId: mergeTarget as Id<"products">, editorCode: editorCode ?? undefined } : "skip");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const ro = !isEditor;
 

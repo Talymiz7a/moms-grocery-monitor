@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { datasetValidator } from "./schema";
-import { EDITOR_ACTOR, requireEditor } from "./lib/access";
+import { EDITOR_ACTOR, requireDatasetRead, requireEditor } from "./lib/access";
 import { isValidIsoDate } from "./lib/dates";
 import { normalizeText } from "./lib/normalize";
 import { reconcile } from "./lib/reconcile";
@@ -39,11 +39,13 @@ function receiptSummary(r: Doc<"receipts">) {
 export const list = query({
   args: {
     dataset: datasetValidator,
+    editorCode: v.optional(v.string()),
     from: v.optional(v.string()),
     to: v.optional(v.string()),
     filter: v.optional(v.union(v.literal("all"), v.literal("draft"), v.literal("verified"), v.literal("issues"))),
   },
-  handler: async (ctx, { dataset, from, to, filter }) => {
+  handler: async (ctx, { editorCode, dataset, from, to, filter }) => {
+    requireDatasetRead(dataset, editorCode);
     const dated = await ctx.db
       .query("receipts")
       .withIndex("by_dataset_date", (q) => {
@@ -84,10 +86,11 @@ export const list = query({
 });
 
 export const get = query({
-  args: { receiptId: v.id("receipts") },
-  handler: async (ctx, { receiptId }) => {
+  args: { receiptId: v.id("receipts"), editorCode: v.optional(v.string()) },
+  handler: async (ctx, { receiptId, editorCode }) => {
     const receipt = await ctx.db.get(receiptId);
     if (!receipt) return null;
+    requireDatasetRead(receipt.dataset, editorCode);
     const items = await ctx.db
       .query("receiptItems")
       .withIndex("by_receipt", (q) => q.eq("receiptId", receiptId))
@@ -106,9 +109,18 @@ export const get = query({
       )
       .order("desc")
       .take(50);
-    const { ocrJson: _omitJson, ...rest } = receipt;
+    const { ocrJson, ...rest } = receipt;
+    // Lines the free in-browser reader could not understand, for manual entry.
+    let ocrUnrecognized: string[] = [];
+    try {
+      const parsed = ocrJson ? (JSON.parse(ocrJson) as { unrecognized?: unknown }) : null;
+      if (parsed && Array.isArray(parsed.unrecognized)) ocrUnrecognized = parsed.unrecognized.filter((x): x is string => typeof x === "string");
+    } catch {
+      // Older or non-JSON OCR payloads simply have no unrecognized list.
+    }
     return {
       receipt: rest,
+      ocrUnrecognized,
       items: items.map((i) => ({
         ...i,
         productName: i.productId ? products.get(i.productId)?.canonicalName : undefined,
@@ -122,8 +134,9 @@ export const get = query({
 });
 
 export const dashboardSummary = query({
-  args: { dataset: datasetValidator },
-  handler: async (ctx, { dataset }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()) },
+  handler: async (ctx, { editorCode, dataset }) => {
+    requireDatasetRead(dataset, editorCode);
     const receipts = await ctx.db
       .query("receipts")
       .withIndex("by_dataset_date", (q) => q.eq("dataset", dataset))
@@ -424,8 +437,9 @@ export const remove = mutation({
  * price) and any alerts that cite them.
  */
 export const itemsInRange = query({
-  args: { dataset: datasetValidator, from: v.string(), to: v.string() },
-  handler: async (ctx, { dataset, from, to }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()), from: v.string(), to: v.string() },
+  handler: async (ctx, { editorCode, dataset, from, to }) => {
+    requireDatasetRead(dataset, editorCode);
     const receipts = await ctx.db
       .query("receipts")
       .withIndex("by_dataset_date", (q) => q.eq("dataset", dataset).gte("purchaseDate", from).lte("purchaseDate", to))

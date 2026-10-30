@@ -28,6 +28,39 @@ Real data and paid OCR are disabled until approved.**
 | `/reports` | Reports & export — CSV, Excel, PDF (A4 landscape) |
 | `/settings`, `/settings/products` | Settings — sensitivity, products, expected shopping list, merge/split |
 
+## Free receipt reading (Tesseract.js — experimental prototype)
+
+Receipt photos can be read **for free, in the browser** with Tesseract.js (Hebrew + English).
+No paid API or external OCR service is used, and the image is processed on the device.
+
+- `src/lib/freeOcr.ts` — loads the self-hosted worker, WebAssembly core and `heb`/`eng`
+  language data from `/tesseract/*` (copied from `node_modules` by
+  `scripts/copy-tesseract-assets.mjs` before `dev`/`build`), corrects the camera
+  orientation, scales the image, and runs three passes:
+  Hebrew (product words), Hebrew+English (line structure, inline numbers) and a
+  digits-only pass (prices).
+- `convex/lib/ocrMerge.ts` — merges the passes line by line using word positions
+  (prices are in the left column on Israeli receipts).
+- `convex/lib/receiptParser.ts` — extracts date, store, receipt number, items,
+  quantity lines (both layouts), weighed items, discounts and the total. When a
+  quantity line disagrees with the printed line total, the field that reproduces
+  the total is corrected **and flagged**; when lines don't add up to the total,
+  unconfirmed amounts are flagged. Unrecognized lines are listed for manual entry.
+- `convex/freeOcr.ts` — saves the result as a draft (editor code required); the
+  review screen shows the original receipt beside the editable lines.
+
+Measured on synthetic, photo-like receipts (10 receipts, 106 lines): totals 10/10,
+dates 9/10 (the 10th flagged as missing), exact line amounts ≈ 91%, exact product
+names ≈ 72%. **Not yet validated on real receipts** — the feature is not approved
+until it has been tested with real Hebrew receipts on the iPad.
+
+## Real data (experimental)
+
+Real receipts are stored in the `real` dataset, separate from the demo. Reading any
+real data — lists, analytics, alerts, receipt files — requires the editor code, and the
+"real data" mode is only available in editor mode. This is still not full
+authentication: anyone who knows the editor code can see the data.
+
 ## Anomaly detection (transparent and configurable)
 
 | Alert | Rule (from the expected shopping list) | Statistical (own history, needs enough data) |

@@ -12,8 +12,8 @@ import { ReconciliationPanel } from "./Review";
 export function ReceiptDetail() {
   const { id } = useParams();
   const receiptId = id as Id<"receipts">;
-  const data = useQuery(api.receipts.get, { receiptId });
-  const { isEditor } = useAppState();
+  const { isEditor, editorCode } = useAppState();
+  const data = useQuery(api.receipts.get, { receiptId, editorCode: editorCode ?? undefined });
   if (data === undefined) return <Loading />;
   if (data === null) return <Notice tone="alert" title="הקבלה לא נמצאה" />;
   const { receipt: r, items, duplicateOf, audit } = data;

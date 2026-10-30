@@ -28,3 +28,13 @@ export function requireEditor(code: string | undefined | null): void {
 }
 
 export const EDITOR_ACTOR = "עורך";
+
+/**
+ * Reading real data requires the editor code as well; demo data is public.
+ * (Until proper sign-in is chosen, the editor code is the only protection.)
+ */
+export function requireDatasetRead(dataset: "demo" | "real", code: string | undefined | null): void {
+  if (dataset === "real" && !isEditorCodeValid(code)) {
+    throw new ConvexError({ code: "READ_PROTECTED", message: "נתונים אמיתיים זמינים רק במצב עריכה (נדרש קוד עורך)." });
+  }
+}

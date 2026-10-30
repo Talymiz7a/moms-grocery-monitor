@@ -7,7 +7,7 @@ import { errorMessage } from "../lib/format";
 import { useAppState } from "../state/AppState";
 
 export function Settings() {
-  const { dataset, isEditor, editorCode, setEditorCode } = useAppState();
+  const { dataset, setDataset, isEditor, editorCode, setEditorCode } = useAppState();
   const status = useQuery(api.app.status, {});
   const resetDemo = useAction(api.demo.reset);
   const [busy, setBusy] = useState(false);
@@ -33,19 +33,21 @@ export function Settings() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <h2 className="mb-3 text-xl font-bold">סוג הנתונים</h2>
-          <div className="space-y-2">
-            <label className="flex items-start gap-3 rounded-xl border border-brand-500 bg-brand-50 p-3">
-              <input type="radio" checked={dataset === "demo"} readOnly className="mt-1 size-5" />
+          <div className="space-y-2" role="radiogroup" aria-label="סוג הנתונים">
+            <label className={`flex items-start gap-3 rounded-xl border p-3 ${dataset === "demo" ? "border-brand-500 bg-brand-50" : "border-line"}`}>
+              <input type="radio" name="dataset" checked={dataset === "demo"} onChange={() => setDataset("demo")} className="mt-1 size-5" />
               <span>
                 <span className="font-semibold">נתוני הדגמה</span>
                 <span className="block text-ink-soft">חמישה חודשים של רכישות בדיוניות (יוני–אוקטובר 2026). מופרדים לחלוטין מנתונים אמיתיים.</span>
               </span>
             </label>
-            <label className="flex items-start gap-3 rounded-xl border border-line p-3 opacity-60">
-              <input type="radio" disabled className="mt-1 size-5" />
+            <label className={`flex items-start gap-3 rounded-xl border p-3 ${dataset === "real" ? "border-review-200 bg-review-50" : "border-line"} ${!isEditor ? "opacity-60" : ""}`}>
+              <input type="radio" name="dataset" checked={dataset === "real"} disabled={!isEditor} onChange={() => setDataset("real")} className="mt-1 size-5" />
               <span>
-                <span className="font-semibold">נתונים אמיתיים</span>
-                <span className="block text-ink-soft">יופעל רק לאחר שתוגדר הזדהות משתמשים ובאישורך.</span>
+                <span className="font-semibold">נתונים אמיתיים (ניסוי)</span>
+                <span className="block text-ink-soft">
+                  לבדיקת קבלות אמיתיות. זמין רק במצב עריכה: גם הצפייה בנתונים ובקבלות האמיתיים דורשת את קוד העורך. זו עדיין לא הזדהות מלאה — כל מי שיודע את הקוד יכול לראות אותם.
+                </span>
               </span>
             </label>
           </div>
@@ -95,8 +97,8 @@ export function Settings() {
 }
 
 function AlertSensitivity() {
-  const { dataset, isEditor, editorCode } = useAppState();
-  const settings = useQuery(api.alerts.settings, { dataset });
+  const { dataset, isEditor, editorCode, readArgs } = useAppState();
+  const settings = useQuery(api.alerts.settings, { ...readArgs });
   const setSensitivity = useMutation(api.alerts.setSensitivity);
   const [msg, setMsg] = useState<string | null>(null);
   if (!settings) return null;

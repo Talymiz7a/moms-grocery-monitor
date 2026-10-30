@@ -40,7 +40,7 @@ const STATUS_FILTERS = [
 type AlertRow = FunctionReturnType<typeof api.alerts.list>["alerts"][number];
 
 export function Alerts() {
-  const { dataset } = useAppState();
+  const { readArgs } = useAppState();
   const [params, setParams] = useSearchParams();
   const focus = params.get("focus");
   const status = (STATUS_FILTERS.find((f) => f.key === params.get("status"))?.key ?? (focus ? "all" : "open")) as (typeof STATUS_FILTERS)[number]["key"];
@@ -50,8 +50,8 @@ export function Alerts() {
   const [toText, setToText] = useState("");
   const from = parseDayFirstDate(fromText) ?? undefined;
   const to = parseDayFirstDate(toText) ?? undefined;
-  const data = useQuery(api.alerts.list, { dataset, status, type: type || undefined, severity: severity || undefined, from, to });
-  const counts = useQuery(api.alerts.counts, { dataset });
+  const data = useQuery(api.alerts.list, { ...readArgs, status, type: type || undefined, severity: severity || undefined, from, to });
+  const counts = useQuery(api.alerts.counts, { ...readArgs });
 
   useEffect(() => {
     if (focus && data) document.getElementById(`alert-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "center" });

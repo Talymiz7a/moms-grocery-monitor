@@ -36,8 +36,10 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="ms-auto flex items-center gap-2">
-            {dataset === "demo" && (
+            {dataset === "demo" ? (
               <span className="hidden rounded-full bg-review-50 px-3 py-1 text-sm font-semibold text-review-700 sm:inline">נתוני הדגמה</span>
+            ) : (
+              <span className="rounded-full bg-brand-500 px-3 py-1 text-sm font-semibold text-white">נתונים אמיתיים</span>
             )}
             {isEditor ? (
               <button
@@ -74,6 +76,13 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
       </header>
 
+      {dataset === "real" && (
+        <div className="border-b border-brand-100 bg-brand-50">
+          <p className="mx-auto max-w-7xl px-4 py-2 text-sm text-brand-700">
+            <strong>נתונים אמיתיים:</strong> מוצגות רק קבלות שהועלו כנתונים אמיתיים. נתוני ההדגמה אינם נכללים כאן. ניתן לחזור להדגמה בהגדרות.
+          </p>
+        </div>
+      )}
       {dataset === "demo" && (
         <div className="border-b border-review-200 bg-review-50">
           <p className="mx-auto max-w-7xl px-4 py-2 text-sm text-review-700">

@@ -7,3 +7,4 @@ dist
 .convex
 *.log
 .env*
+public/tesseract

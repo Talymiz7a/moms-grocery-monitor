@@ -7,6 +7,7 @@ import { ALLOWED_UPLOAD_TYPES, MAX_UPLOAD_BYTES } from "../../convex/lib/config"
 import { Icon } from "../components/Icon";
 import { Button, Card, Notice, PageHeader } from "../components/ui";
 import { errorMessage } from "../lib/format";
+import { readReceiptFree, toSaveArgs, type OcrProgress } from "../lib/freeOcr";
 import { useAppState } from "../state/AppState";
 
 /**
@@ -40,6 +41,9 @@ export function Upload() {
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const createDraft = useMutation(api.files.createDraftFromUpload);
   const createManual = useMutation(api.files.createManualDraft);
+  const saveFreeOcr = useMutation(api.freeOcr.saveResult);
+  const [freeOcr, setFreeOcr] = useState(true);
+  const [progress, setProgress] = useState<OcrProgress | null>(null);
   const navigate = useNavigate();
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -89,12 +93,27 @@ export function Upload() {
         ocrStorageId: ocrStorageId as Id<"_storage"> | undefined,
         fileName: file.name || "receipt",
       });
-      if (res.duplicate) setDuplicate({ receiptId: res.receiptId, reason: res.duplicate.reason, originalId: res.duplicate.id });
-      else navigate(`/receipts/${res.receiptId}/review`);
+      if (res.duplicate) {
+        setDuplicate({ receiptId: res.receiptId, reason: res.duplicate.reason, originalId: res.duplicate.id });
+        return;
+      }
+      if (freeOcr && canReadFree(file)) {
+        try {
+          const { parsed, durationMs } = await readReceiptFree(file, setProgress);
+          await saveFreeOcr({ editorCode, receiptId: res.receiptId, ...toSaveArgs(parsed, durationMs) });
+          navigate(`/receipts/${res.receiptId}/review`);
+        } catch (e) {
+          console.error(e);
+          navigate(`/receipts/${res.receiptId}/review?ocr=failed`);
+        }
+        return;
+      }
+      navigate(`/receipts/${res.receiptId}/review`);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
 
@@ -119,7 +138,12 @@ export function Upload() {
         )}
         {dataset === "demo" && isEditor && (
           <Notice tone="review" title="מצב הדגמה">
-            קבלות שמועלות עכשיו נשמרות כנתוני הדגמה ונמחקות באיפוס ההדגמה. אין להעלות קבלות אמיתיות לפני שתוגדר הזדהות.
+            קבלות שמועלות עכשיו נשמרות כנתוני הדגמה ונמחקות באיפוס ההדגמה. לקבלות אמיתיות עברו קודם ל"נתונים אמיתיים" בהגדרות.
+          </Notice>
+        )}
+        {dataset === "real" && isEditor && (
+          <Notice tone="brand" title="נתונים אמיתיים">
+            הקבלה תישמר כנתונים אמיתיים, נפרד מההדגמה. הצפייה בה דורשת קוד עורך.
           </Notice>
         )}
         <Card>
@@ -161,8 +185,22 @@ export function Upload() {
                 נבחר: {file.name} <span className="num text-ink-soft">({(file.size / 1024 / 1024).toFixed(1)} MB)</span>
               </p>
               {preview && <img src={preview} alt="תצוגה מקדימה של הקבלה" className="max-h-96 rounded-xl border border-line" />}
+              {canReadFree(file) ? (
+                <label className="flex min-h-11 items-start gap-3 rounded-xl border border-line p-3">
+                  <input type="checkbox" className="mt-1 size-5" checked={freeOcr} onChange={(e) => setFreeOcr(e.target.checked)} disabled={busy} />
+                  <span>
+                    <span className="font-semibold">קריאה אוטומטית חינמית במכשיר (ניסוי)</span>
+                    <span className="block text-sm text-ink-soft">
+                      הקבלה נקראת כאן בדפדפן, ללא שירות חיצוני וללא עלות. לוקח בדרך כלל 20–60 שניות. כל השדות נבדקים ומתוקנים במסך הבדיקה לפני האישור.
+                    </span>
+                  </span>
+                </label>
+              ) : (
+                <p className="text-sm text-ink-soft">קריאה אוטומטית חינמית זמינה לתמונות בלבד (לא PDF). את פרטי הקבלה מזינים במסך הבדיקה.</p>
+              )}
+              {progress && <OcrProgressBar p={progress} />}
               <div className="flex flex-wrap gap-2">
-                <Button icon="upload" onClick={upload} disabled={busy}>{busy ? "מעלה…" : "העלאה והמשך לבדיקה"}</Button>
+                <Button icon="upload" onClick={upload} disabled={busy}>{busy ? (progress ? "קורא את הקבלה…" : "מעלה…") : freeOcr && canReadFree(file) ? "העלאה וקריאה אוטומטית" : "העלאה והמשך לבדיקה"}</Button>
                 <Button variant="ghost" onClick={() => setFile(null)} disabled={busy}>ביטול</Button>
               </div>
             </div>
@@ -180,12 +218,26 @@ export function Upload() {
             </div>
           )}
         </Card>
-        <Notice tone="neutral" title={status?.ocrEnabled ? "קריאה אוטומטית פעילה" : "קריאה אוטומטית כבויה"}>
-          {status?.ocrEnabled
-            ? "אחרי ההעלאה אפשר ללחוץ על 'קריאה אוטומטית' במסך הבדיקה. כל שדה בוודאות נמוכה יסומן לבדיקה."
-            : "כרגע הקריאה האוטומטית (בתשלום) כבויה עד לאישורך. אחרי ההעלאה מזינים את הפריטים ידנית מול תמונת הקבלה."}
+        <Notice tone="neutral" title="על הקריאה האוטומטית">
+          הקריאה החינמית (Tesseract) רצה במכשיר שלך — התמונה לא נשלחת לשירות קריאה חיצוני. היא מדויקת פחות משירות בתשלום: מחירים וסכומים נקראים בדרך כלל טוב, שמות מוצרים לעיתים בשגיאות. שדות לא ודאיים מסומנים בצהוב.
+          {status?.ocrEnabled ? " קריאה בתשלום (Claude) זמינה גם היא במסך הבדיקה." : " קריאה בתשלום כבויה."}
         </Notice>
       </div>
     </>
+  );
+}
+
+function canReadFree(file: File) {
+  return /^image\/(jpeg|png|webp|heic|heif)$/.test(file.type);
+}
+
+export function OcrProgressBar({ p }: { p: OcrProgress }) {
+  return (
+    <div className="rounded-xl border border-brand-100 bg-brand-50 p-3" role="status" aria-live="polite">
+      <p className="mb-2 font-medium text-brand-700">{p.label}</p>
+      <div className="h-3 overflow-hidden rounded-full bg-white" aria-hidden="true">
+        <div className="h-full rounded-full bg-brand-500 transition-[width]" style={{ width: `${Math.round(p.fraction * 100)}%` }} />
+      </div>
+    </div>
   );
 }

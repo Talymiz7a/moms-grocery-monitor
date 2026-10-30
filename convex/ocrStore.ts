@@ -1,5 +1,6 @@
-import { ConvexError, v } from "convex/values";
-import { internalMutation, internalQuery } from "./_generated/server";
+import { ConvexError, v, type Infer } from "convex/values";
+import type { Id } from "./_generated/dataModel";
+import { internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
 import { confidenceValidator, lineTypeValidator, unitValidator } from "./schema";
 import { EDITOR_ACTOR } from "./lib/access";
 import { confirmedWordingIndex } from "./lib/productMatch";
@@ -49,36 +50,44 @@ export const saveError = internalMutation({
   },
 });
 
-export const saveResult = internalMutation({
-  args: {
-    receiptId: v.id("receipts"),
-    model: v.string(),
-    json: v.string(),
-    rawText: v.string(),
-    confidence: confidenceValidator,
-    header: v.object({
-      storeName: v.optional(v.string()),
-      purchaseDate: v.optional(v.string()),
-      receiptNumber: v.optional(v.string()),
-      totalAgorot: v.optional(v.number()),
-    }),
-    headerLowConfidence: v.array(v.string()),
-    lines: v.array(
-      v.object({
-        originalDescription: v.string(),
-        lineType: lineTypeValidator,
-        quantity: v.number(),
-        unit: unitValidator,
-        unitPriceAgorot: v.optional(v.number()),
-        lineTotalAgorot: v.number(),
-        discountAgorot: v.optional(v.number()),
-        confidence: confidenceValidator,
-        lowConfidenceFields: v.array(v.string()),
-      }),
-    ),
-    usage: v.object({ inputTokens: v.number(), outputTokens: v.number() }),
-  },
-  handler: async (ctx, args) => {
+
+export const ocrLineValidator = v.object({
+  originalDescription: v.string(),
+  lineType: lineTypeValidator,
+  quantity: v.number(),
+  unit: unitValidator,
+  unitPriceAgorot: v.optional(v.number()),
+  lineTotalAgorot: v.number(),
+  discountAgorot: v.optional(v.number()),
+  confidence: confidenceValidator,
+  lowConfidenceFields: v.array(v.string()),
+});
+
+export const ocrHeaderValidator = v.object({
+  storeName: v.optional(v.string()),
+  purchaseDate: v.optional(v.string()),
+  receiptNumber: v.optional(v.string()),
+  totalAgorot: v.optional(v.number()),
+});
+
+export type OcrResultArgs = {
+  receiptId: Id<"receipts">;
+  model: string;
+  json: string;
+  rawText: string;
+  confidence: "high" | "medium" | "low";
+  header: Infer<typeof ocrHeaderValidator>;
+  headerLowConfidence: string[];
+  lines: Infer<typeof ocrLineValidator>[];
+  usage?: { inputTokens: number; outputTokens: number };
+};
+
+/**
+ * Stores a receipt-reading result (from Claude or from the free in-browser
+ * reader) as draft lines awaiting review. Previously confirmed wordings are
+ * matched to products; everything else stays for a person to confirm.
+ */
+export async function applyOcrResult(ctx: MutationCtx, args: OcrResultArgs) {
     const r = await ctx.db.get(args.receiptId);
     if (!r) throw new ConvexError("הקבלה לא נמצאה");
     if (r.verificationStatus === "verified") throw new ConvexError("קבלה שאושרה אינה נקראת מחדש");
@@ -140,5 +149,19 @@ export const saveResult = internalMutation({
       details: { model: args.model, usage: args.usage },
     });
     await scheduleRecompute(ctx, r.dataset);
+}
+
+export const saveResult = internalMutation({
+  args: {
+    receiptId: v.id("receipts"),
+    model: v.string(),
+    json: v.string(),
+    rawText: v.string(),
+    confidence: confidenceValidator,
+    header: ocrHeaderValidator,
+    headerLowConfidence: v.array(v.string()),
+    lines: v.array(ocrLineValidator),
+    usage: v.object({ inputTokens: v.number(), outputTokens: v.number() }),
   },
+  handler: async (ctx, args) => applyOcrResult(ctx, args),
 });

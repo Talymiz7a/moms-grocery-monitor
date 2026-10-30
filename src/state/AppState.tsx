@@ -4,6 +4,8 @@ export type Dataset = "demo" | "real";
 
 type AppState = {
   dataset: Dataset;
+  /** Arguments every read needs: the dataset, plus the editor code (required for real data). */
+  readArgs: { dataset: Dataset; editorCode?: string };
   setDataset: (d: Dataset) => void;
   /** Editor code for this browser tab; null = read-only. */
   editorCode: string | null;
@@ -30,19 +32,34 @@ function safeSet(storage: () => Storage, key: string, value: string | null) {
 }
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  // Real data stays disabled until authentication is decided, so the
-  // dataset is always "demo" for now.
-  const [dataset, setDatasetState] = useState<Dataset>("demo");
   const [editorCode, setCode] = useState<string | null>(() => safeGet(() => sessionStorage, "editorCode"));
+  // Real data can only be opened in editor mode; the choice is kept for this tab.
+  const [dataset, setDatasetState] = useState<Dataset>(() =>
+    safeGet(() => sessionStorage, "dataset") === "real" && safeGet(() => sessionStorage, "editorCode") ? "real" : "demo",
+  );
 
-  const setDataset = useCallback((d: Dataset) => setDatasetState(d), []);
+  const setDataset = useCallback((d: Dataset) => {
+    safeSet(() => sessionStorage, "dataset", d);
+    setDatasetState(d);
+  }, []);
   const setEditorCode = useCallback((code: string | null) => {
     safeSet(() => sessionStorage, "editorCode", code);
     setCode(code);
+    if (code === null) {
+      safeSet(() => sessionStorage, "dataset", "demo");
+      setDatasetState("demo");
+    }
   }, []);
 
   const value = useMemo(
-    () => ({ dataset, setDataset, editorCode, setEditorCode, isEditor: editorCode !== null }),
+    () => ({
+      dataset,
+      readArgs: editorCode ? { dataset, editorCode } : { dataset },
+      setDataset,
+      editorCode,
+      setEditorCode,
+      isEditor: editorCode !== null,
+    }),
     [dataset, setDataset, editorCode, setEditorCode],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

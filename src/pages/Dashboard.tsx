@@ -10,12 +10,12 @@ import { useAppState } from "../state/AppState";
 import { ALERT_TYPES } from "./Alerts";
 
 export function Dashboard() {
-  const { dataset } = useAppState();
+  const { readArgs } = useAppState();
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>({ mode: "all" });
-  const base = useQuery(api.analytics.periodSummary, { dataset });
+  const base = useQuery(api.analytics.periodSummary, { ...readArgs });
   const range = periodRange(period, base?.dataFrom, base?.dataTo);
-  const s = useQuery(api.analytics.periodSummary, range.valid && period.mode !== "all" ? { dataset, from: range.from, to: range.to } : { dataset });
+  const s = useQuery(api.analytics.periodSummary, range.valid && period.mode !== "all" ? { ...readArgs, from: range.from, to: range.to } : { ...readArgs });
   if (s === undefined || base === undefined) return <Loading />;
   const q = range.from && range.to ? `from=${range.from}&to=${range.to}` : "";
   const maxTop = Math.max(1, ...s.top.map((t) => t.occasions));

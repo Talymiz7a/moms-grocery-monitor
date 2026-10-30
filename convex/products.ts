@@ -2,14 +2,15 @@ import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { datasetValidator, expectedUseValidator, unitValidator } from "./schema";
-import { EDITOR_ACTOR, requireEditor } from "./lib/access";
+import { EDITOR_ACTOR, requireDatasetRead, requireEditor } from "./lib/access";
 import { extractQualifiers, normalizeText, qualifiersConflict, suggestMatches } from "./lib/normalize";
 import { cleanText, writeAudit } from "./lib/receiptOps";
 import { scheduleRecompute } from "./lib/recompute";
 
 export const list = query({
-  args: { dataset: datasetValidator },
-  handler: async (ctx, { dataset }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()) },
+  handler: async (ctx, { editorCode, dataset }) => {
+    requireDatasetRead(dataset, editorCode);
     const all = await ctx.db
       .query("products")
       .withIndex("by_dataset", (q) => q.eq("dataset", dataset))
@@ -30,8 +31,9 @@ export const list = query({
 
 /** Suggests product matches for raw receipt descriptions. Suggestions only — a person confirms. */
 export const suggest = query({
-  args: { dataset: datasetValidator, descriptions: v.array(v.string()) },
-  handler: async (ctx, { dataset, descriptions }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()), descriptions: v.array(v.string()) },
+  handler: async (ctx, { editorCode, dataset, descriptions }) => {
+    requireDatasetRead(dataset, editorCode);
     const all = await ctx.db
       .query("products")
       .withIndex("by_dataset", (q) => q.eq("dataset", dataset))
@@ -45,8 +47,9 @@ export const suggest = query({
 
 /** Products with their expected-use category and manual expectations (Settings). */
 export const listWithExpectations = query({
-  args: { dataset: datasetValidator },
-  handler: async (ctx, { dataset }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()) },
+  handler: async (ctx, { editorCode, dataset }) => {
+    requireDatasetRead(dataset, editorCode);
     const all = await ctx.db.query("products").withIndex("by_dataset", (q) => q.eq("dataset", dataset)).collect();
     const exps = await ctx.db.query("productExpectations").withIndex("by_dataset_product", (q) => q.eq("dataset", dataset)).collect();
     const expBy = new Map(exps.map((e) => [e.productId as string, e]));
@@ -202,10 +205,11 @@ export const merge = mutation({
 
 /** Warns before merging products whose sizes or percentages differ. */
 export const mergeCheck = query({
-  args: { sourceId: v.id("products"), targetId: v.id("products") },
-  handler: async (ctx, { sourceId, targetId }) => {
+  args: { sourceId: v.id("products"), targetId: v.id("products"), editorCode: v.optional(v.string()) },
+  handler: async (ctx, { sourceId, targetId, editorCode }) => {
     const [a, b] = [await ctx.db.get(sourceId), await ctx.db.get(targetId)];
     if (!a || !b) return null;
+    requireDatasetRead(a.dataset, editorCode);
     return {
       conflict: qualifiersConflict(extractQualifiers(a.canonicalName), extractQualifiers(b.canonicalName)),
       unitDiffers: a.unit !== b.unit,

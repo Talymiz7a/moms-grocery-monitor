@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { datasetValidator } from "./schema";
-import { EDITOR_ACTOR, requireEditor } from "./lib/access";
+import { EDITOR_ACTOR, requireDatasetRead, requireEditor } from "./lib/access";
 import { detectAnomalies, hashEvidence, SENSITIVITY, type Sensitivity } from "./lib/anomalies";
 import { loadFacts } from "./lib/facts";
 import { cleanText, writeAudit, type Dataset } from "./lib/receiptOps";
@@ -105,7 +105,7 @@ export async function recomputeAlerts(ctx: MutationCtx, dataset: Dataset) {
 }
 
 export const recompute = internalMutation({
-  args: { dataset: datasetValidator },
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()) },
   handler: async (ctx, { dataset }) => recomputeAlerts(ctx, dataset),
 });
 
@@ -121,13 +121,15 @@ async function receiptBrief(ctx: QueryCtx, ids: Id<"receipts">[]) {
 export const list = query({
   args: {
     dataset: datasetValidator,
+    editorCode: v.optional(v.string()),
     status: v.optional(v.union(v.literal("open"), v.literal("pending"), v.literal("investigate"), v.literal("explained"), v.literal("all"))),
     type: v.optional(v.string()),
     severity: v.optional(v.string()),
     from: v.optional(v.string()),
     to: v.optional(v.string()),
   },
-  handler: async (ctx, { dataset, status = "open", type, severity, from, to }) => {
+  handler: async (ctx, { editorCode, dataset, status = "open", type, severity, from, to }) => {
+    requireDatasetRead(dataset, editorCode);
     const all = await ctx.db.query("alerts").withIndex("by_dataset_status", (q) => q.eq("dataset", dataset)).collect();
     const products = new Map(
       (await ctx.db.query("products").withIndex("by_dataset", (q) => q.eq("dataset", dataset)).collect()).map((p) => [p._id as string, p.canonicalName]),
@@ -179,8 +181,9 @@ export const list = query({
 });
 
 export const counts = query({
-  args: { dataset: datasetValidator },
-  handler: async (ctx, { dataset }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()) },
+  handler: async (ctx, { editorCode, dataset }) => {
+    requireDatasetRead(dataset, editorCode);
     const all = await ctx.db.query("alerts").withIndex("by_dataset_status", (q) => q.eq("dataset", dataset)).collect();
     const open = all.filter((a) => a.status !== "explained" && !a.inactive);
     return {
@@ -214,8 +217,9 @@ export const review = mutation({
 });
 
 export const settings = query({
-  args: { dataset: datasetValidator },
-  handler: async (ctx, { dataset }) => {
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()) },
+  handler: async (ctx, { editorCode, dataset }) => {
+    requireDatasetRead(dataset, editorCode);
     const sensitivity = await getSensitivity(ctx, dataset);
     return { sensitivity, options: Object.entries(SENSITIVITY).map(([k, s]) => ({ key: k as Sensitivity, label: s.label })) };
   },

@@ -19,7 +19,7 @@ const FILTERS = [
 type FilterKey = (typeof FILTERS)[number]["key"];
 
 export function Receipts() {
-  const { dataset } = useAppState();
+  const { readArgs } = useAppState();
   const [params, setParams] = useSearchParams();
   const filter = (FILTERS.find((f) => f.key === params.get("filter"))?.key ?? "all") as FilterKey;
   const [fromText, setFromText] = useState(() => formatIsoDate(params.get("from") ?? ""));
@@ -28,7 +28,7 @@ export function Receipts() {
   const to = parseDayFirstDate(toText) ?? undefined;
   const fromInvalid = fromText.trim() !== "" && !from;
   const toInvalid = toText.trim() !== "" && !to;
-  const rawRows = useQuery(api.receipts.list, { dataset, filter, from, to });
+  const rawRows = useQuery(api.receipts.list, { ...readArgs, filter, from, to });
   const navigate = useNavigate();
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "date", dir: -1 });
   const [showItems, setShowItems] = useState(false);

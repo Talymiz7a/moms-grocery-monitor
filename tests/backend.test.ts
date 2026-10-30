@@ -76,7 +76,7 @@ describe("receipt review and counting", () => {
       lines: [milkLine(6, { kind: "new", canonicalName: "חלב 3% 1 ליטר", unit: "unit" })],
       finalize: false,
     });
-    const products = await t.query(api.products.list, { dataset: "real" });
+    const products = await t.query(api.products.list, { dataset: "real", editorCode: CODE });
     expect(products).toHaveLength(1);
     const productId = products[0]._id;
     await t.mutation(api.receipts.saveReview, {
@@ -86,12 +86,12 @@ describe("receipt review and counting", () => {
       lines: [milkLine(6, { kind: "existing", productId }), milkLine(1, { kind: "existing", productId })],
       finalize: true,
     });
-    const s = await t.query(api.receipts.dashboardSummary, { dataset: "real" });
+    const s = await t.query(api.receipts.dashboardSummary, { dataset: "real", editorCode: CODE });
     expect(s.receiptCount).toBe(1);
     expect(s.distinctProducts).toBe(1);
     expect(s.purchaseOccasions).toBe(1);
     expect(s.totalSpendAgorot).toBe(690 * 7);
-    const detail = await t.query(api.receipts.get, { receiptId });
+    const detail = await t.query(api.receipts.get, { editorCode: CODE, receiptId });
     expect(detail?.receipt.reconciliation?.status).toBe("match");
     expect(detail?.receipt.verificationStatus).toBe("verified");
     expect(detail?.items.map((i) => i.matchStatus)).toEqual(["confirmed", "confirmed"]);
@@ -110,7 +110,7 @@ describe("receipt review and counting", () => {
     });
     expect(res.reconciliation.status).toBe("mismatch");
     expect(res.reconciliation.differenceAgorot).toBe(400);
-    const detail = await t.query(api.receipts.get, { receiptId });
+    const detail = await t.query(api.receipts.get, { editorCode: CODE, receiptId });
     expect(detail?.receipt.totalAgorot).toBe(1090);
   });
 
@@ -140,7 +140,7 @@ describe("receipt review and counting", () => {
     expect(draft.duplicate?.id).toBe(a.receiptId);
     await t.mutation(api.receipts.setDuplicateOverride, { editorCode: CODE, receiptId: b.receiptId, notDuplicate: true });
     await t.mutation(api.receipts.saveReview, { editorCode: CODE, receiptId: b.receiptId, header, lines, finalize: true });
-    expect((await t.query(api.receipts.dashboardSummary, { dataset: "real" })).receiptCount).toBe(2);
+    expect((await t.query(api.receipts.dashboardSummary, { dataset: "real", editorCode: CODE })).receiptCount).toBe(2);
   });
 
   test("deleting a receipt removes its lines and is recorded", async () => {
@@ -150,7 +150,7 @@ describe("receipt review and counting", () => {
       editorCode: CODE, receiptId, header: { purchaseDate: "2026-06-04" }, lines: [milkLine(1, { kind: "none" })], finalize: false,
     });
     await t.mutation(api.receipts.remove, { editorCode: CODE, receiptId });
-    expect(await t.query(api.receipts.get, { receiptId })).toBeNull();
+    expect(await t.query(api.receipts.get, { editorCode: CODE, receiptId })).toBeNull();
     const items = await t.run((ctx) => ctx.db.query("receiptItems").collect());
     expect(items).toHaveLength(0);
     const audit = await t.run((ctx) => ctx.db.query("auditLog").collect());
@@ -190,10 +190,10 @@ describe("demo data", () => {
     expect(demo.missingTotalCount).toBe(1);
     expect(demo.purchaseOccasions).toBeGreaterThan(demo.receiptCount);
 
-    const real = await t.query(api.receipts.dashboardSummary, { dataset: "real" });
+    const real = await t.query(api.receipts.dashboardSummary, { dataset: "real", editorCode: CODE });
     expect(real.receiptCount).toBe(0);
     expect(real.draftCount).toBe(1);
-    expect(await t.query(api.receipts.get, { receiptId: realId })).not.toBeNull();
+    expect(await t.query(api.receipts.get, { editorCode: CODE, receiptId: realId })).not.toBeNull();
 
     // The exact re-upload is detected by file fingerprint.
     const all = await t.query(api.receipts.list, { dataset: "demo" });
@@ -349,7 +349,7 @@ describe("end-to-end data checks (Stage 5)", () => {
     const before = await t.query(api.analytics.periodSummary, { dataset: "demo" });
     const drafts = await t.query(api.receipts.list, { dataset: "demo", filter: "draft" });
     const lowConf = drafts.find((r) => r.purchaseDate === "2026-10-25")!;
-    const detail = (await t.query(api.receipts.get, { receiptId: lowConf._id }))!;
+    const detail = (await t.query(api.receipts.get, { editorCode: CODE, receiptId: lowConf._id }))!;
     const products = await t.query(api.products.list, { dataset: "demo" });
     const byName = (n: string) => products.find((p) => p.canonicalName === n)!._id;
     const fix: Record<string, string> = { "חלב טרי 3 אחו 1 ל": "חלב 3% 1 ליטר", "ביצים L 12": "ביצים L תבנית 12", "קוטג׳ 5%": "קוטג' 5% 250 גרם" };
@@ -404,7 +404,7 @@ describe("end-to-end data checks (Stage 5)", () => {
     const t = convexTest(schema, modules);
     await t.action(internal.demo.seed, {});
     const july5 = (await t.query(api.receipts.list, { dataset: "demo", from: "2026-07-05", to: "2026-07-05" }))[0];
-    const d = (await t.query(api.receipts.get, { receiptId: july5._id }))!;
+    const d = (await t.query(api.receipts.get, { editorCode: CODE, receiptId: july5._id }))!;
     expect(d.items.some((i) => i.lineType === "return" && i.lineTotalAgorot < 0)).toBe(true);
     expect(d.items.some((i) => i.lineType === "discount" && i.lineTotalAgorot < 0)).toBe(true);
     expect(d.receipt.reconciliation?.status).toBe("match");
@@ -422,9 +422,23 @@ describe("end-to-end data checks (Stage 5)", () => {
     expect(total).toBe((await t.query(api.analytics.periodSummary, { dataset: "demo" })).purchaseOccasions);
     expect(report.previous).toEqual({ from: "2025-12-30", to: "2026-05-31" }); // same length (153 days), immediately before
     expect(report.reviewedAlerts.length).toBe(2);
-    const real = await t.query(api.analytics.reportData, { dataset: "real", from: "2026-06-01", to: "2026-10-31" });
+    const real = await t.query(api.analytics.reportData, { dataset: "real", editorCode: CODE, from: "2026-06-01", to: "2026-10-31" });
     expect(real.comparison).toHaveLength(0);
     expect(real.unresolvedAlerts).toHaveLength(0);
-    expect((await t.query(api.analytics.periodSummary, { dataset: "real" })).receiptCount).toBe(0);
+    expect((await t.query(api.analytics.periodSummary, { dataset: "real", editorCode: CODE })).receiptCount).toBe(0);
+  });
+});
+
+describe("real data is protected", () => {
+  test("reading real data requires the editor code; demo stays public", async () => {
+    const t = convexTest(schema, modules);
+    const { receiptId } = await t.mutation(api.files.createManualDraft, { editorCode: CODE, dataset: "real" });
+    await expect(t.query(api.receipts.list, { dataset: "real" })).rejects.toThrow();
+    await expect(t.query(api.receipts.get, { receiptId })).rejects.toThrow();
+    await expect(t.query(api.analytics.periodSummary, { dataset: "real", editorCode: "wrong" })).rejects.toThrow();
+    await expect(t.query(api.alerts.list, { dataset: "real" })).rejects.toThrow();
+    await expect(t.query(api.products.list, { dataset: "real" })).rejects.toThrow();
+    expect(await t.query(api.receipts.list, { dataset: "real", editorCode: CODE })).toHaveLength(1);
+    expect(await t.query(api.receipts.list, { dataset: "demo" })).toEqual([]);
   });
 });
