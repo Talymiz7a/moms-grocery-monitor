@@ -16,13 +16,14 @@ export const GEMINI_MAX_FILE_BYTES = 14 * 1024 * 1024;
 const nullableNumber = (description?: string) => ({ type: "NUMBER", nullable: true, ...(description ? { description } : {}) });
 
 const ITEM_FIELDS = ["description", "quantity", "unit", "unitPrice", "lineTotal", "discount", "lineType", "confidence", "uncertainFields"];
-const RECEIPT_FIELDS = ["rawText", "storeName", "purchaseDate", "receiptNumber", "items", "total", "uncertainHeaderFields", "overallConfidence", "notes"];
+// No full transcription is requested: it doubles the answer's length and long
+// free-text output is where generation is most likely to loop.
+const RECEIPT_FIELDS = ["storeName", "purchaseDate", "receiptNumber", "items", "total", "uncertainHeaderFields", "overallConfidence", "notes"];
 
 /** OcrReceiptSchema in the OpenAPI form Gemini's responseSchema expects. */
 export const GEMINI_RESPONSE_SCHEMA = {
   type: "OBJECT",
   properties: {
-    rawText: { type: "STRING", description: "Line-by-line transcription of the whole receipt in reading order" },
     storeName: { type: "STRING", nullable: true },
     purchaseDate: { type: "STRING", nullable: true, description: "Date as printed, day first (DD/MM/YYYY)" },
     receiptNumber: { type: "STRING", nullable: true },
@@ -61,11 +62,21 @@ Israeli supermarket receipts:
 - A quantity line such as "2 X 5.90" or "1.235 ק"ג X 12.90" belongs to the item next to it: put it in that item's quantity and unitPrice; do not create a separate line for it.
 - Lines such as הנחה, מבצע, הנחת מועדון, קופון are discounts. פיקדון is a deposit line.
 - Skip lines that are not purchases: subtotal (סה"כ ביניים), VAT (מע"מ), payment method, change (עודף), card details, loyalty points, savings summaries (חסכת), cashier and branch details.
-- total is the final amount to pay (סה"כ לתשלום) after all discounts.
-- In rawText, replace payment card numbers, customer names and phone numbers with ***.`;
+- total is the final amount to pay (סה"כ לתשלום / לתשלום) after all discounts.
+- An item without a quantity line was sold as one unit: quantity 1, unit "unit", unitPrice equal to its amount.
+- Ignore the full-text transcription rule above: return only the requested fields.`;
 
 /** Request body for models/{model}:generateContent. */
-export function buildGeminiRequest(mimeType: string, base64Data: string) {
+/** Lite models answer quickly; full models think, so they get a small thinking budget and more time. */
+export function isLiteModel(model: string) {
+  return /lite/.test(model);
+}
+
+export function attemptTimeoutMs(model: string) {
+  return isLiteModel(model) ? 60_000 : 150_000;
+}
+
+export function buildGeminiRequest(mimeType: string, base64Data: string, model = "") {
   return {
     systemInstruction: { parts: [{ text: GEMINI_PROMPT }] },
     contents: [
@@ -74,11 +85,15 @@ export function buildGeminiRequest(mimeType: string, base64Data: string) {
         parts: [{ inlineData: { mimeType, data: base64Data } }, { text: "Read this grocery receipt." }],
       },
     ],
+    // Default temperature: Google advises against lowering it for current
+    // models (it can make generation loop). The output cap ends a runaway
+    // answer quickly instead of letting it run for minutes.
     generationConfig: {
-      temperature: 0,
-      maxOutputTokens: 32768,
+      maxOutputTokens: 16384,
       responseMimeType: "application/json",
       responseSchema: GEMINI_RESPONSE_SCHEMA,
+      // Unlimited thinking made the full Flash model run past 4 minutes.
+      ...(model && !isLiteModel(model) ? { thinkingConfig: { thinkingBudget: 1024 } } : {}),
     },
   };
 }

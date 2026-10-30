@@ -100,7 +100,7 @@ export function Upload() {
       }
       const chosen = effectiveMethod;
       if (chosen === "gemini") {
-        setProgress({ label: "Gemini קורא את הקבלה — בדרך כלל 10–40 שניות", fraction: 0.5 });
+        setProgress({ label: "Gemini קורא את הקבלה — בדרך כלל 5–20 שניות", fraction: 0.5 });
         try {
           await readWithGemini({ editorCode, receiptId: res.receiptId });
           navigate(`/receipts/${res.receiptId}/review`);
@@ -258,7 +258,7 @@ type ReadMethod = "gemini" | "free" | "none";
 const METHOD_TEXT: Record<ReadMethod, { title: string; body: string }> = {
   gemini: {
     title: "קריאה חכמה עם Gemini (מומלץ, חינם)",
-    body: "בינה מלאכותית של Google מזהה את מבנה הקבלה: מוצרים, כמויות, מחירים והנחות.",
+    body: "בינה מלאכותית של Google מזהה את מבנה הקבלה: מוצרים, כמויות, מחירים והנחות. כמה שניות.",
   },
   free: {
     title: "קריאה חינמית במכשיר (Tesseract, ניסוי)",

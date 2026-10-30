@@ -53,3 +53,34 @@ export const geminiDiagnostics = internalQuery({
     };
   },
 });
+
+/**
+ * Diagnostic for receipt reading, run from the CLI
+ * (`npx convex run --prod app:recentReadings`): the latest receipts with their
+ * reading results, for comparing against the original image.
+ */
+export const recentReadings = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    const rows = await ctx.db.query("receipts").order("desc").take(Math.min(limit ?? 3, 10));
+    return Promise.all(
+      rows.map(async (r) => ({
+        id: r._id,
+        dataset: r.dataset,
+        uploadedAt: new Date(r.uploadedAt).toISOString(),
+        fileType: r.fileType,
+        hasOcrCopy: !!r.ocrFileId,
+        fileUrl: r.fileId ? await ctx.storage.getUrl(r.fileId) : null,
+        ocrCopyUrl: r.ocrFileId ? await ctx.storage.getUrl(r.ocrFileId) : null,
+        ocrStatus: r.ocrStatus,
+        ocrModel: r.ocrModel,
+        ocrError: r.ocrError,
+        ocrConfidence: r.ocrConfidence,
+        verificationStatus: r.verificationStatus,
+        header: { storeName: r.storeName, purchaseDate: r.purchaseDate, totalAgorot: r.totalAgorot },
+        reconciliation: r.reconciliation,
+        ocrJson: r.ocrJson,
+      })),
+    );
+  },
+});

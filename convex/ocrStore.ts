@@ -19,6 +19,7 @@ export const getForOcr = internalQuery({
       ocrFileId: r.ocrFileId,
       ocrStatus: r.ocrStatus,
       verificationStatus: r.verificationStatus,
+      updatedAt: r.updatedAt,
     };
   },
 });

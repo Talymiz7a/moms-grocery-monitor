@@ -276,16 +276,17 @@ export function Review() {
     }
   }
 
-  async function readWithGemini() {
+  async function readWithGemini(mode: "fast" | "careful") {
     if (!editorCode) return;
+    if (dirty && !window.confirm("קריאה מחדש תחליף את השינויים שלא נשמרו. להמשיך?")) return;
     setError(null);
     setMessage(null);
-    setBusy("gemini");
+    setBusy(mode === "fast" ? "gemini" : "gemini-careful");
     try {
       setDirty(false);
-      const res = await runGemini({ editorCode, receiptId });
+      const res = await runGemini({ editorCode, receiptId, mode });
       setInitKey(null);
-      setMessage(`Gemini קרא ${res.lines} שורות. בדקו את השדות המסומנים מול התמונה ואשרו כדי לשמור.`);
+      setMessage(`Gemini קרא ${res.lines} שורות תוך ${Math.max(1, Math.round(res.ms / 1000))} שניות. בדקו את השדות המסומנים מול התמונה ואשרו כדי לשמור.`);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -449,8 +450,13 @@ export function Review() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-xl font-bold">פרטי הקבלה</h2>
               {canGemini && (
-                <Button variant="secondary" icon="sparkle" onClick={readWithGemini} disabled={busy !== null || geminiLeft <= 0} title={`נוצלו החודש ${gemini?.usedThisMonth ?? 0} מתוך ${gemini?.monthlyLimit ?? 0} קריאות`}>
+                <Button variant="secondary" icon="sparkle" onClick={() => readWithGemini("fast")} disabled={busy !== null || geminiLeft <= 0} title={`נוצלו החודש ${gemini?.usedThisMonth ?? 0} מתוך ${gemini?.monthlyLimit ?? 0} קריאות`}>
                   {busy === "gemini" ? "Gemini קורא…" : geminiLeft <= 0 ? "נוצלו הקריאות החכמות לחודש" : isGemini ? "קריאה חכמה מחדש" : "קריאה חכמה (Gemini)"}
+                </Button>
+              )}
+              {canGemini && geminiLeft > 0 && (
+                <Button variant="secondary" icon="sparkle" onClick={() => readWithGemini("careful")} disabled={busy !== null} title="מודל Gemini מלא: שמות מוצרים מדויקים יותר, לוקח כדקה–שתיים">
+                  {busy === "gemini-careful" ? "קורא בקפידה (עד 2 דקות)…" : "קריאה מדויקת (איטית)"}
                 </Button>
               )}
               {canFreeOcr && (

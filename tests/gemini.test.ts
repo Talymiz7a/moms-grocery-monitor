@@ -11,7 +11,6 @@ const modules = import.meta.glob("../convex/**/*.ts");
 const CODE = "test-editor-code-123";
 
 const RECEIPT = {
-  rawText: "שופרסל דיל\n30/10/2026\nחלב 3% 1 ל 2 X 6.90 13.80\nלחם אחיד 7.50\nהנחת מועדון -1.00\nסה\"כ לתשלום 20.30",
   storeName: "שופרסל דיל",
   purchaseDate: "30/10/2026",
   receiptNumber: "4512",
@@ -115,12 +114,15 @@ describe("geminiOcr.extract", () => {
     expect(res).toMatchObject({ ok: true, lines: 3 });
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toContain("generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent");
+    expect(url).toContain("generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent");
     expect((init.headers as Record<string, string>)["x-goog-api-key"]).toBe("test-key");
     expect(url).not.toContain("test-key");
     const body = JSON.parse(init.body as string);
     expect(body.contents[0].parts[0].inlineData.mimeType).toBe("image/jpeg");
     expect(body.generationConfig.responseMimeType).toBe("application/json");
+    // Lowering the temperature makes current models loop; Lite needs no thinking budget.
+    expect(body.generationConfig.temperature).toBeUndefined();
+    expect(body.generationConfig.thinkingConfig).toBeUndefined();
 
     const r = await t.run((ctx) => ctx.db.get(receiptId));
     expect(r).toMatchObject({
@@ -143,20 +145,43 @@ describe("geminiOcr.extract", () => {
     expect(status.gemini).toEqual({ enabled: true, monthlyLimit: 30, usedThisMonth: 1 });
   });
 
-  test("moves to the next model when one is unavailable or out of free quota", async () => {
+  test("moves to the next model when one is unavailable, out of free quota or too slow", async () => {
+    const t = convexTest(schema, modules);
+    const timeout = Object.assign(new Error("The operation timed out"), { name: "TimeoutError" });
+    for (const failure of [
+      () => Promise.resolve(new Response('{"error":{"code":404}}', { status: 404 })),
+      () => Promise.resolve(new Response('{"error":{"code":429,"message":"limit: 0"}}', { status: 429 })),
+      () => Promise.reject(timeout),
+    ]) {
+      const receiptId = await newReceipt(t);
+      const fetchMock = vi.fn().mockImplementationOnce(failure).mockResolvedValueOnce(ok(RECEIPT, "gemini-3.8-flash"));
+      vi.stubGlobal("fetch", fetchMock);
+      const res = await t.action(api.geminiOcr.extract, { editorCode: CODE, receiptId });
+      expect(res.model).toBe("gemini-3.8-flash");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect((fetchMock.mock.calls[1] as unknown as [string])[0]).toContain("/models/gemini-flash-latest:");
+    }
+    // One reading counts once, however many models were tried.
+    expect((await t.query(api.app.status, {})).gemini.usedThisMonth).toBe(3);
+  });
+
+  test("careful mode uses the full Flash model with a small thinking budget", async () => {
     const t = convexTest(schema, modules);
     const receiptId = await newReceipt(t);
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response('{"error":{"code":404}}', { status: 404 }))
-      .mockResolvedValueOnce(new Response('{"error":{"code":429,"message":"limit: 0"}}', { status: 429 }))
-      .mockResolvedValueOnce(ok(RECEIPT, "gemini-flash-lite"));
+    const fetchMock = vi.fn(async () => ok(RECEIPT, "gemini-3.8-flash"));
     vi.stubGlobal("fetch", fetchMock);
-    const res = await t.action(api.geminiOcr.extract, { editorCode: CODE, receiptId });
-    expect(res.model).toBe("gemini-flash-lite");
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    // One reading counts once, however many models were tried.
-    expect((await t.query(api.app.status, {})).gemini.usedThisMonth).toBe(1);
+    await t.action(api.geminiOcr.extract, { editorCode: CODE, receiptId, mode: "careful" });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/models/gemini-flash-latest:");
+    expect(JSON.parse(init.body as string).generationConfig.thinkingConfig).toEqual({ thinkingBudget: 1024 });
+  });
+
+  test("when every model fails the receipt is left for manual entry", async () => {
+    const t = convexTest(schema, modules);
+    const receiptId = await newReceipt(t);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 503 })));
+    await expect(t.action(api.geminiOcr.extract, { editorCode: CODE, receiptId })).rejects.toThrow(/Gemini/);
+    expect((await t.run((ctx) => ctx.db.get(receiptId)))!.ocrStatus).toBe("failed");
   });
 
   test("an invalid key fails clearly and marks the receipt for manual entry", async () => {

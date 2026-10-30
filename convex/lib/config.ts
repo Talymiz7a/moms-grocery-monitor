@@ -22,11 +22,16 @@ export function geminiApiKey(): string | undefined {
 export const GEMINI_MONTHLY_LIMIT = 30;
 
 /**
- * Models tried in order. Free-tier availability differs by model, so when one
- * is unavailable or has no free quota the next is tried. "-latest" aliases
- * follow Google's current Flash models.
+ * Models tried in order for each reading mode; when one is unavailable, out of
+ * free quota or too slow, the next is tried. "-latest" aliases follow Google's
+ * current models. Measured on a real Shufersal receipt: Flash-Lite answered in
+ * ~4 s with every amount right; Flash took ~100 s and read names better.
  */
-export const DEFAULT_GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest"];
+export const GEMINI_MODELS = {
+  fast: ["gemini-flash-lite-latest", "gemini-flash-latest"],
+  careful: ["gemini-flash-latest", "gemini-flash-lite-latest"],
+} as const;
+export type GeminiMode = keyof typeof GEMINI_MODELS;
 
 /**
  * Receipt reading with the Gemini API free tier. On when GEMINI_API_KEY is set
@@ -34,9 +39,10 @@ export const DEFAULT_GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash",
  * key must come from a Google AI Studio project without billing, so requests
  * beyond the free limits are refused by Google instead of charged.
  */
-export function geminiConfig() {
+export function geminiConfig(mode: GeminiMode = "fast") {
   const enabled = !!geminiApiKey() && process.env.GEMINI_OCR_ENABLED?.trim().toLowerCase() !== "false";
   const preferred = process.env.GEMINI_MODEL?.trim();
-  const models = preferred ? [preferred, ...DEFAULT_GEMINI_MODELS.filter((m) => m !== preferred)] : DEFAULT_GEMINI_MODELS;
+  const defaults: readonly string[] = GEMINI_MODELS[mode];
+  const models = preferred ? [preferred, ...defaults.filter((m) => m !== preferred)] : [...defaults];
   return { enabled, models, monthlyLimit: GEMINI_MONTHLY_LIMIT };
 }
