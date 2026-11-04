@@ -46,9 +46,15 @@ free limits are refused (HTTP 429), never charged.
   future dates are flagged. Values are never changed.
 - `convex/aiUsage.ts` — the app's own cap of **30 readings per calendar month**
   (counted before each request, failures included).
-- Models are tried in order (`gemini-flash-latest`, `gemini-2.5-flash`,
-  `gemini-flash-lite-latest`; `GEMINI_MODEL` puts another first) because free-tier
-  availability differs by model.
+- Two modes. **Fast** (default): `gemini-flash-lite-latest`, about 4 seconds on a
+  real Shufersal receipt with every amount correct. **Careful**: `gemini-flash-latest`
+  with a small thinking budget, about 1.5 minutes, better product names. Each mode
+  falls back to the other model when one is unavailable, out of free quota or too
+  slow. `GEMINI_MODEL` puts another model first.
+- Default temperature and no full transcription: lowering the temperature made the
+  full model loop past the time limit.
+- Admin-only checks from the CLI: `app:geminiDiagnostics` (key present, never its
+  value), `app:recentReadings`, `geminiOcr:diagnose`, `geminiOcr:extractFromCli`.
 - Under the free-tier terms Google may use submitted content to improve its
   products. Nothing counts in analytics or alerts until a person approves the
   receipt on the review screen. Tesseract (below) remains available as a fallback.
