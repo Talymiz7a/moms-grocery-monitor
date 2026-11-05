@@ -1,0 +1,228 @@
+{
+ "r1": {
+  "id": "r1",
+  "store": "סופר השכונה",
+  "branch": "סניף רמת החייל",
+  "font": "Liberation Mono",
+  "size": 19,
+  "width": 430,
+  "bg": "#555",
+  "rot": 1.2,
+  "blur": 0.6,
+  "noise": 28,
+  "dateText": "14/10/2026",
+  "date": "2026-10-14",
+  "number": "40211",
+  "total": 96.32,
+  "lines": [
+   {
+    "kind": "item",
+    "desc": "חלב 3% 1 ליטר",
+    "qty": 2,
+    "price": 6.9,
+    "total": 13.8
+   },
+   {
+    "kind": "item",
+    "desc": "לחם אחיד פרוס",
+    "qty": 1,
+    "price": 8.5,
+    "total": 8.5
+   },
+   {
+    "kind": "item",
+    "desc": "ביצים L 12 יח",
+    "qty": 1,
+    "price": 13.9,
+    "total": 13.9
+   },
+   {
+    "kind": "item",
+    "desc": "קוטג' 5% 250 גרם",
+    "qty": 3,
+    "price": 5.9,
+    "total": 17.7
+   },
+   {
+    "kind": "discount",
+    "desc": "הנחת מבצע קוטג'",
+    "total": -3.7
+   },
+   {
+    "kind": "item",
+    "desc": "עגבניות",
+    "qty": 1.235,
+    "weighed": true,
+    "price": 7.9,
+    "total": 9.76
+   },
+   {
+    "kind": "item",
+    "desc": "בננות",
+    "qty": 0.982,
+    "weighed": true,
+    "price": 8.9,
+    "total": 8.74
+   },
+   {
+    "kind": "item",
+    "desc": "קפה נמס 200 גרם",
+    "qty": 1,
+    "price": 27.62,
+    "total": 27.62
+   }
+  ]
+ },
+ "b6": {
+  "id": "b6",
+  "store": "יוחננוף",
+  "branch": "סניף רחובות",
+  "font": "FreeMono",
+  "size": 21,
+  "width": 421,
+  "bg": "#555",
+  "rot": 0.2,
+  "blur": 1,
+  "noise": 21,
+  "layout": "A",
+  "dateText": "13/10/26",
+  "date": "2026-10-13",
+  "number": "86470",
+  "total": 274.06,
+  "lines": [
+   {
+    "kind": "item",
+    "desc": "תפוחי אדמה",
+    "qty": 1.552,
+    "weighed": true,
+    "price": 4.9,
+    "total": 7.6
+   },
+   {
+    "kind": "item",
+    "desc": "חזה עוף טרי",
+    "qty": 1.594,
+    "weighed": true,
+    "price": 39.9,
+    "total": 63.6
+   },
+   {
+    "kind": "item",
+    "desc": "קוקה קולה 1.5 ליטר",
+    "qty": 3,
+    "price": 8.9,
+    "total": 26.7
+   },
+   {
+    "kind": "item",
+    "desc": "קוטג' תנובה 5%",
+    "qty": 1,
+    "price": 5.9,
+    "total": 5.9
+   },
+   {
+    "kind": "item",
+    "desc": "חלב תנובה 3% 1 ליטר",
+    "qty": 1,
+    "price": 6.9,
+    "total": 6.9
+   },
+   {
+    "kind": "item",
+    "desc": "פיתות 10 יח'",
+    "qty": 1,
+    "price": 9.9,
+    "total": 9.9
+   },
+   {
+    "kind": "item",
+    "desc": "פלפל אדום",
+    "qty": 1.148,
+    "weighed": true,
+    "price": 12.9,
+    "total": 14.81
+   },
+   {
+    "kind": "item",
+    "desc": "בננות",
+    "qty": 1.524,
+    "weighed": true,
+    "price": 8.9,
+    "total": 13.56
+   },
+   {
+    "kind": "item",
+    "desc": "חזה עוף טרי",
+    "qty": 0.663,
+    "weighed": true,
+    "price": 39.9,
+    "total": 26.45
+   },
+   {
+    "kind": "item",
+    "desc": "מלפפון",
+    "qty": 0.98,
+    "weighed": true,
+    "price": 6.9,
+    "total": 6.76
+   },
+   {
+    "kind": "item",
+    "desc": "אורז פרסי סוגת 1 ק\"ג",
+    "qty": 1,
+    "price": 11.9,
+    "total": 11.9
+   },
+   {
+    "kind": "item",
+    "desc": "חזה עוף טרי",
+    "qty": 0.745,
+    "weighed": true,
+    "price": 39.9,
+    "total": 29.73
+   },
+   {
+    "kind": "item",
+    "desc": "סוכר לבן 1 ק\"ג",
+    "qty": 1,
+    "price": 5.9,
+    "total": 5.9
+   },
+   {
+    "kind": "item",
+    "desc": "לחם אחיד פרוס",
+    "qty": 1,
+    "price": 8.5,
+    "total": 8.5
+   },
+   {
+    "kind": "item",
+    "desc": "שוקולד פרה חלב",
+    "qty": 3,
+    "price": 6.4,
+    "total": 19.2
+   },
+   {
+    "kind": "discount",
+    "desc": "הנחת מבצע",
+    "total": -3.84
+   },
+   {
+    "kind": "item",
+    "desc": "מלפפון",
+    "qty": 1.552,
+    "weighed": true,
+    "price": 6.9,
+    "total": 10.71
+   },
+   {
+    "kind": "item",
+    "desc": "בננות",
+    "qty": 1.099,
+    "weighed": true,
+    "price": 8.9,
+    "total": 9.78
+   }
+  ]
+ }
+}

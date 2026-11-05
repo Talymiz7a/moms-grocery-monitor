@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Heebo", "Segoe UI", "Arial", system-ui, sans-serif;
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dce8ff;
+  --color-brand-500: #3a86ff;
+  --color-brand-600: #1f6fe8;
+  --color-brand-700: #1858bd;
+  --color-ink: #1d2430;
+  --color-ink-soft: #4a5565;
+  --color-line: #dde2ea;
+  --color-page: #f4f6f9;
+  /* Amber = needs review. Red is reserved for important unresolved issues. */
+  --color-review-50: #fff8e6;
+  --color-review-200: #f9dc8c;
+  --color-review-700: #8a5300;
+  --color-alert-50: #fdeeee;
+  --color-alert-600: #c62828;
+  --color-ok-50: #eaf7ef;
+  --color-ok-700: #1e6b3a;
+}
+
+html {
+  font-size: 17px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  line-height: 1.55;
+}
+
+/* Numbers (amounts, quantities, dates) keep left-to-right digit order inside RTL text. */
+.num {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

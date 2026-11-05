@@ -1,2 +1,217 @@
-# moms-grocery-monitor
-Grocery receipt tracking and anomaly detection app with OCR, purchase frequency analysis, dashboards, and alerts.
+# Mom's Grocery Monitor (מעקב קניות אמא)
+
+A private, Hebrew (RTL) web app for monitoring grocery purchases made for an elderly
+mother: receipt upload and reading, purchase-frequency analysis and review of unusual
+purchases. It is a monitoring tool, not a budgeting app — an anomaly is not proof of
+misconduct; the app shows evidence and supports human review.
+
+**Status: approved by the owner on 05/11/2026.** Receipt reading uses the Gemini API free
+tier (approved after testing on real Hebrew receipts); Tesseract stays as a fallback.
+Paid OCR (Claude) remains disabled.
+
+| Stage | Scope | Status |
+|---|---|---|
+| 1 | Database, Hebrew interface, navigation, upload, OCR, manual review | ✅ built |
+| 2 | Searches, frequency calculations, grouped monthly chart, quantity analysis, history | ✅ built |
+| 3 | Expected shopping rules, anomalies, duplicate alerts, review statuses | ✅ built |
+| 4 | Dashboard, reports, exports | ✅ built |
+| 5 | Five-month demo verification and end-to-end testing | ✅ approved |
+
+## Screens
+
+| Route | Screen |
+|---|---|
+| `/` | Dashboard — period filter (all / month / year / range), summary cards, monthly frequency chart, top products, unusual patterns, recent receipts, receipts awaiting review |
+| `/upload` | Upload Receipt — camera, image or PDF; or manual entry |
+| `/receipts`, `/receipts/:id`, `/receipts/:id/review` | Receipts & Purchases — date search with item view, product search, sorting, details, review/edit |
+| `/analysis`, `/analysis/products/:id` | Product Analysis — grouped products × 12 months chart, product history |
+| `/alerts` | Alerts & Review — evidence, statuses, notes, history |
+| `/reports` | Reports & export — CSV, Excel, PDF (A4 landscape) |
+| `/settings`, `/settings/products` | Settings — sensitivity, products, expected shopping list, merge/split |
+
+## Smart receipt reading (Gemini API free tier)
+
+Receipts can be read with Google Gemini, which understands receipt structure
+(items, quantity lines, weighed produce, discounts, total) rather than only
+characters. It uses the **free tier** of the Gemini Developer API: the key comes
+from a Google AI Studio project **without billing**, so requests beyond Google's
+free limits are refused (HTTP 429), never charged.
+
+- `convex/geminiOcr.ts` — action that sends the receipt image (JPEG copy, or the
+  original HEIC/PDF) to `generateContent` with a JSON response schema, and stores
+  the result as a **draft**. The key is sent in a header from the Convex server;
+  it never reaches the browser.
+- `convex/lib/gemini.ts` — request, response schema (same structure as the Claude
+  reader), response validation, and the app's own checks: lines where
+  quantity × unit price ≠ line total, a total the lines don't add up to, and
+  future dates are flagged. Values are never changed.
+- `convex/aiUsage.ts` — the app's own cap of **30 readings per calendar month**
+  (counted before each request, failures included).
+- Two modes. **Fast** (default): `gemini-flash-lite-latest`, about 4 seconds on a
+  real Shufersal receipt with every amount correct. **Careful**: `gemini-flash-latest`
+  with a small thinking budget, about 1.5 minutes, better product names. Each mode
+  falls back to the other model when one is unavailable, out of free quota or too
+  slow. `GEMINI_MODEL` puts another model first.
+- Default temperature and no full transcription: lowering the temperature made the
+  full model loop past the time limit.
+- Admin-only checks from the CLI: `app:geminiDiagnostics` (key present, never its
+  value), `app:recentReadings`, `geminiOcr:diagnose`, `geminiOcr:extractFromCli`.
+- Under the free-tier terms Google may use submitted content to improve its
+  products. Nothing counts in analytics or alerts until a person approves the
+  receipt on the review screen. Tesseract (below) remains available as a fallback.
+
+## Free receipt reading (Tesseract.js — experimental prototype)
+
+Receipt photos can be read **for free, in the browser** with Tesseract.js (Hebrew + English).
+No paid API or external OCR service is used, and the image is processed on the device.
+
+- `src/lib/freeOcr.ts` — loads the self-hosted worker, WebAssembly core and `heb`/`eng`
+  language data from `/tesseract/*` (copied from `node_modules` by
+  `scripts/copy-tesseract-assets.mjs` before `dev`/`build`), corrects the camera
+  orientation, scales the image, and runs three passes:
+  Hebrew (product words), Hebrew+English (line structure, inline numbers) and a
+  digits-only pass (prices).
+- `convex/lib/ocrMerge.ts` — merges the passes line by line using word positions
+  (prices are in the left column on Israeli receipts).
+- `convex/lib/receiptParser.ts` — extracts date, store, receipt number, items,
+  quantity lines (both layouts), weighed items, discounts and the total. When a
+  quantity line disagrees with the printed line total, the field that reproduces
+  the total is corrected **and flagged**; when lines don't add up to the total,
+  unconfirmed amounts are flagged. Unrecognized lines are listed for manual entry.
+- `convex/freeOcr.ts` — saves the result as a draft (editor code required); the
+  review screen shows the original receipt beside the editable lines.
+
+Measured on synthetic, photo-like receipts (10 receipts, 106 lines): totals 10/10,
+dates 9/10 (the 10th flagged as missing), exact line amounts ≈ 91%, exact product
+names ≈ 72%. On real receipts it proved too weak, so Gemini is the main reader and
+this one is kept as an offline fallback.
+
+## Real data (experimental)
+
+Real receipts are stored in the `real` dataset, separate from the demo. Reading any
+real data — lists, analytics, alerts, receipt files — requires the editor code, and the
+"real data" mode is only available in editor mode. This is still not full
+authentication: anyone who knows the editor code can see the data.
+
+## Anomaly detection (transparent and configurable)
+
+| Alert | Rule (from the expected shopping list) | Statistical (own history, needs enough data) |
+|---|---|---|
+| Excessive frequency | more purchases in a month than *max per month* | month above mean + k·sd of prior months and ≥ ratio × mean (≥ 3 prior months) |
+| Large quantity | quantity above *max quantity* | ≥ multiplier × median of prior purchases and above the prior maximum (≥ 5 prior) |
+| Close together | fewer days than *minimum interval* | far shorter than the median interval and rare in this product's history (≥ 5 prior intervals) |
+| New product | — | first purchase after the first 30 days of data (notice) |
+| Not expected | product marked *not expected* / *manual review* | — |
+| Duplicate receipt | same file fingerprint / receipt number + store / store + date + total + items | — |
+| High total | — | above the same store's median + k·MAD (≥ 8 prior receipts), read with basket size |
+
+Sensitivity (low / medium / high) sets k and the multipliers (`convex/lib/anomalies.ts`).
+Explained alerts stay closed unless their evidence changes. Alerts never infer intent.
+
+## Architecture
+
+- **Frontend:** React 19 + TypeScript + Vite, Tailwind CSS v4, React Router. Hebrew
+  RTL throughout (`<html lang="he" dir="rtl">`), DD/MM/YYYY dates, ILS amounts.
+- **Backend & storage:** [Convex](https://convex.dev) — database, file storage for
+  receipts, server functions (`convex/`).
+- **Hosting:** Vercel (static build; `vercel.json` deploys Convex functions then builds).
+- **Receipt reading:** Gemini API free tier (`convex/geminiOcr.ts`), on when
+  `GEMINI_API_KEY` is set; Tesseract.js in the browser as a fallback; Claude via the
+  Anthropic API (`convex/ocr.ts`), paid and **disabled by default**.
+
+### Key rules implemented
+
+- **Demo and real data never mix.** Every record has `dataset: "demo" | "real"`, and
+  every index and query starts with it. Demo reset deletes demo records only. Real data
+  is available only in editor mode.
+- **Counting:** purchase *frequency* = number of distinct receipts containing a product;
+  *quantity* = summed units; six units on one receipt (or several lines of the same
+  product) are **one** purchase occasion. Only verified receipts and confirmed product
+  identities count.
+- **Money** is stored as integer agorot. Receipt lines are reconciled against the
+  printed total; differences are shown, never silently corrected.
+- **OCR never invents values:** unreadable fields stay empty and are flagged
+  low-confidence; every receipt goes through a review screen before it counts.
+- **Product matching** suggests matches; a person confirms. Different sizes or fat
+  percentages (e.g. milk 3% vs 1%) are never proposed as a strong match. Only exact,
+  previously confirmed wording is matched automatically.
+- **Duplicates** (same file fingerprint, same receipt number + store, or same store +
+  date + total) block approval until a person overrides or deletes.
+- **Receipt files** are never served from public URLs: the app requests a 10-minute
+  HMAC-signed link that an HTTP action verifies (`convex/http.ts`).
+- **Audit log** records uploads, OCR runs, reviews, overrides and deletions.
+- **Write protection (temporary):** the preview has no login; anyone can view demo
+  data, but every change requires `EDITOR_CODE`. Recommended to replace with
+  real authentication for long-term use with real receipts.
+
+## Deployments
+
+| Service | Resource | Notes |
+|---|---|---|
+| Convex | project `moms-grocery-monitor` (team `talymiz`) | production deployment backs the preview; dev deployment for development |
+| Vercel | project `moms-grocery-monitor` | preview: https://moms-grocery-monitor.vercel.app (demo data, read-only) |
+
+Deploy (from a machine logged in to both CLIs):
+
+```bash
+npx convex deploy                 # push backend functions/schema to Convex production
+npx convex run --prod demo:seed   # (re)load demo data — replaces demo records only
+npx vercel deploy                 # preview deployment of the static site
+```
+
+Vercel needs `VITE_CONVEX_URL` (the Convex production URL) in its Preview and
+Production environments. The Vercel build only runs `npm run build`; Convex is
+deployed separately.
+
+## Environment variables
+
+Set in the **Convex dashboard → Settings → Environment Variables** (never in the repo):
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `EDITOR_CODE` | yes | Code that unlocks editing (min. 8 chars). Unset = everything read-only. |
+| `FILE_LINK_SECRET` | yes | Random secret (≥16 chars) for signing receipt-file links. |
+| `GEMINI_API_KEY` | no | Key from Google AI Studio, created in a project **without billing** (free tier). Enables smart reading. |
+| `GEMINI_OCR_ENABLED` | no | `false` switches Gemini reading off without removing the key. |
+| `GEMINI_MODEL` | no | Model tried first (others follow as fallbacks). |
+| `OCR_ENABLED` | no | `true` to allow paid Claude OCR calls. Off by default. |
+| `ANTHROPIC_API_KEY` | no | Anthropic API key, needed only when `OCR_ENABLED=true`. |
+| `OCR_MODEL` | no | Model ID. Default `claude-opus-5-5`. |
+
+Set in **Vercel → Project → Settings → Environment Variables**:
+
+| Variable | Purpose |
+|---|---|
+| `VITE_CONVEX_URL` | Convex production URL the website connects to (public value). |
+
+## Development
+
+```bash
+npm install
+npx convex dev          # creates/links a Convex deployment and regenerates convex/_generated
+npm run dev             # Vite dev server
+```
+
+Load the demo data (five fictional months, 01/06/2026–28/10/2026):
+
+```bash
+npx convex run demo:seed
+```
+
+Checks:
+
+```bash
+npm test                # unit tests + Convex backend tests (convex-test)
+npm run typecheck
+npm run build
+```
+
+## Demo data scenarios
+
+The deterministic demo dataset (`convex/lib/demoData.ts`) includes normal recurring
+purchases, a quantity spike (6 litres of milk), short-interval repeats (coffee in
+October), new products (hummus from September), products not normally expected
+(energy drinks, dog food), two duplicate receipts (same file; re-photographed),
+inconsistent product wording, low-confidence OCR drafts, discounts, a return line,
+two receipts on the same day, a torn receipt with no total, a receipt with no date
+and an unexplained total mismatch. Every demo receipt has a generated receipt image.
