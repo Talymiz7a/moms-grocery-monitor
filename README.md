@@ -5,8 +5,9 @@ mother: receipt upload and reading, purchase-frequency analysis and review of un
 purchases. It is a monitoring tool, not a budgeting app — an anomaly is not proof of
 misconduct; the app shows evidence and supports human review.
 
-**Status: Stages 1–5 built — preview with fictional demo data, awaiting review and approval.
-Real data and paid OCR are disabled until approved.**
+**Status: approved by the owner on 05/11/2026.** Receipt reading uses the Gemini API free
+tier (approved after testing on real Hebrew receipts); Tesseract stays as a fallback.
+Paid OCR (Claude) remains disabled.
 
 | Stage | Scope | Status |
 |---|---|---|
@@ -14,7 +15,7 @@ Real data and paid OCR are disabled until approved.**
 | 2 | Searches, frequency calculations, grouped monthly chart, quantity analysis, history | ✅ built |
 | 3 | Expected shopping rules, anomalies, duplicate alerts, review statuses | ✅ built |
 | 4 | Dashboard, reports, exports | ✅ built |
-| 5 | Five-month demo verification and end-to-end testing | ✅ built — awaiting your review |
+| 5 | Five-month demo verification and end-to-end testing | ✅ approved |
 
 ## Screens
 
@@ -82,8 +83,8 @@ No paid API or external OCR service is used, and the image is processed on the d
 
 Measured on synthetic, photo-like receipts (10 receipts, 106 lines): totals 10/10,
 dates 9/10 (the 10th flagged as missing), exact line amounts ≈ 91%, exact product
-names ≈ 72%. **Not yet validated on real receipts** — the feature is not approved
-until it has been tested with real Hebrew receipts on the iPad.
+names ≈ 72%. On real receipts it proved too weak, so Gemini is the main reader and
+this one is kept as an offline fallback.
 
 ## Real data (experimental)
 
@@ -122,7 +123,7 @@ Explained alerts stay closed unless their evidence changes. Alerts never infer i
 
 - **Demo and real data never mix.** Every record has `dataset: "demo" | "real"`, and
   every index and query starts with it. Demo reset deletes demo records only. Real data
-  is disabled in the UI until authentication is set up.
+  is available only in editor mode.
 - **Counting:** purchase *frequency* = number of distinct receipts containing a product;
   *quantity* = summed units; six units on one receipt (or several lines of the same
   product) are **one** purchase occasion. Only verified receipts and confirmed product
@@ -140,8 +141,8 @@ Explained alerts stay closed unless their evidence changes. Alerts never infer i
   HMAC-signed link that an HTTP action verifies (`convex/http.ts`).
 - **Audit log** records uploads, OCR runs, reviews, overrides and deletions.
 - **Write protection (temporary):** the preview has no login; anyone can view demo
-  data, but every change requires `EDITOR_CODE`. Must be replaced by real
-  authentication before real receipts are used.
+  data, but every change requires `EDITOR_CODE`. Recommended to replace with
+  real authentication for long-term use with real receipts.
 
 ## Deployments
 
