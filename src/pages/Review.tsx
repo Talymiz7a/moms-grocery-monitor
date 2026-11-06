@@ -7,6 +7,7 @@ import { suggestMatches, type MatchSuggestion } from "../../convex/lib/normalize
 import { reconcile, type Reconciliation } from "../../convex/lib/reconcile";
 import { ReceiptFileViewer } from "../components/ReceiptFile";
 import { Button, Card, Chip, Field, Loading, Notice, PageHeader, inputClass, warnInputClass } from "../components/ui";
+import { mismatchExplanation, mismatchShort } from "../components/ReceiptStatus";
 import {
   CONFIDENCE_LABELS,
   FIELD_LABELS,
@@ -737,14 +738,19 @@ export function ReconciliationPanel({ rec }: { rec: Pick<Reconciliation, "status
     <div className={`rounded-xl border p-4 ${tone}`}>
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div><dt className="text-sm text-ink-soft">סך השורות</dt><dd className="num font-semibold">{formatIls(rec.linesTotalAgorot)}</dd></div>
-        <div><dt className="text-sm text-ink-soft">הנחות בשורות</dt><dd className="num font-semibold">{formatIls(-rec.discountsAgorot)}</dd></div>
+        <div><dt className="text-sm text-ink-soft">הנחות בשורות</dt><dd className="num font-semibold">{formatIls(rec.discountsAgorot ? -rec.discountsAgorot : 0)}</dd></div>
         <div><dt className="text-sm text-ink-soft">סכום מחושב</dt><dd className="num font-semibold">{formatIls(rec.computedTotalAgorot)}</dd></div>
         <div><dt className="text-sm text-ink-soft">סכום מודפס</dt><dd className="num font-semibold">{formatIls(rec.printedTotalAgorot)}</dd></div>
       </dl>
       <p className="mt-3 font-semibold">
         {rec.status === "match" && <span className="text-ok-700">✓ הסכומים תואמים</span>}
         {rec.status === "mismatch" && (
-          <span className="text-review-700">⚠ פער לא מוסבר של {formatIls(rec.differenceAgorot)} — הסכומים לא שונו. בדקו מול הקבלה.</span>
+          <span className="block text-review-700">
+            ⚠ {rec.differenceAgorot != null ? mismatchShort(rec.differenceAgorot) : "הסכומים אינם תואמים"}
+            <span className="mt-1 block font-normal">
+              {rec.differenceAgorot != null && mismatchExplanation(rec.differenceAgorot)} המערכת לא משנה סכומים בעצמה — השוו את השורות לקבלה ותקנו במסך הבדיקה.
+            </span>
+          </span>
         )}
         {rec.status === "no_total" && <span className="text-ink-soft">אין סכום כולל מודפס להשוואה (קבלה חלקית).</span>}
         {rec.status === "no_lines" && <span className="text-ink-soft">אין שורות.</span>}
