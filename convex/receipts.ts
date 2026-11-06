@@ -4,7 +4,7 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 import { datasetValidator } from "./schema";
 import { EDITOR_ACTOR, requireDatasetRead, requireEditor } from "./lib/access";
 import { isValidIsoDate } from "./lib/dates";
-import { normalizeText } from "./lib/normalize";
+import { matchesSearch, normalizeText, searchTerms } from "./lib/normalize";
 import { reconcile } from "./lib/reconcile";
 import {
   cleanText,
@@ -477,5 +477,52 @@ export const itemsInRange = query({
       });
     }
     return out;
+  },
+});
+
+/**
+ * Free-text search over every receipt line, whether or not it is linked to a
+ * product yet, plus the products whose names match. Lines match on their
+ * printed wording or on their linked product's names.
+ */
+export const searchLines = query({
+  args: { dataset: datasetValidator, editorCode: v.optional(v.string()), text: v.string() },
+  handler: async (ctx, { dataset, editorCode, text }) => {
+    requireDatasetRead(dataset, editorCode);
+    const terms = searchTerms(text.slice(0, 80));
+    if (terms.join("").length < 2) return { products: [], lines: [], truncated: false };
+    const products = await ctx.db.query("products").withIndex("by_dataset", (q) => q.eq("dataset", dataset)).collect();
+    const productNames = new Map(products.map((p) => [p._id as string, [p.canonicalName, ...p.aliases]]));
+    const matchingProducts = products
+      .filter((p) => !p.mergedIntoId && matchesSearch(terms, [p.canonicalName, ...p.aliases]))
+      .map((p) => ({ _id: p._id, canonicalName: p.canonicalName }));
+    const items = await ctx.db.query("receiptItems").withIndex("by_dataset_date", (q) => q.eq("dataset", dataset)).collect();
+    const hits = items.filter(
+      (i) => i.lineType !== "discount" && matchesSearch(terms, [i.originalDescription, ...(i.productId ? (productNames.get(i.productId) ?? []) : [])]),
+    );
+    const receipts = new Map<string, Doc<"receipts"> | null>();
+    const lines = [];
+    for (const i of hits.sort((a, b) => (b.purchaseDate ?? "").localeCompare(a.purchaseDate ?? "")).slice(0, 200)) {
+      if (!receipts.has(i.receiptId)) receipts.set(i.receiptId, await ctx.db.get(i.receiptId));
+      const r = receipts.get(i.receiptId);
+      if (!r) continue;
+      lines.push({
+        _id: i._id,
+        receiptId: i.receiptId,
+        purchaseDate: r.purchaseDate,
+        storeName: r.storeName,
+        verified: r.verificationStatus === "verified",
+        originalDescription: i.originalDescription,
+        productId: i.productId,
+        productName: i.productId ? productNames.get(i.productId)?.[0] : undefined,
+        lineType: i.lineType,
+        quantity: i.quantity,
+        unit: i.unit,
+        unitPriceAgorot: i.unitPriceAgorot,
+        lineTotalAgorot: i.lineTotalAgorot,
+        discountAgorot: i.discountAgorot,
+      });
+    }
+    return { products: matchingProducts.slice(0, 8), lines, truncated: hits.length > 200 };
   },
 });

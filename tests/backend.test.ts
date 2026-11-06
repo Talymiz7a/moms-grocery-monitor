@@ -494,3 +494,26 @@ describe("clearing demo data", () => {
     expect(await t.run(async (ctx) => (await ctx.db.system.query("_storage").collect()).length)).toBe(0);
   });
 });
+
+describe("receipt line search", () => {
+  test("finds lines that are not linked to a product, by wording and plural form", async () => {
+    const t = convexTest(schema, modules);
+    const receiptId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("receipts", {
+        dataset: "real", purchaseDate: "2026-10-23", purchaseDateSource: "ocr", storeName: "פרשמרקט", ocrStatus: "done",
+        verificationStatus: "verified", uploadedAt: 0, updatedAt: 0, createdBy: "test",
+      });
+      for (const [i, d] of ["בננה", "בננות אורגניות", "עגבניה"].entries()) {
+        await ctx.db.insert("receiptItems", {
+          dataset: "real", receiptId: id, purchaseDate: "2026-10-23", lineIndex: i, matchStatus: "unmatched", originalDescription: d,
+          lineType: "item", quantity: 1, unit: "kg", unitPriceAgorot: 990, lineTotalAgorot: 990, confidence: "high", lowConfidenceFields: [], corrected: false,
+        });
+      }
+      return id;
+    });
+    const res = await t.query(api.receipts.searchLines, { dataset: "real", editorCode: CODE, text: "בננה" });
+    expect(res.lines.map((l) => l.originalDescription).sort()).toEqual(["בננה", "בננות אורגניות"]);
+    expect(res.lines[0]).toMatchObject({ receiptId, storeName: "פרשמרקט", purchaseDate: "2026-10-23", verified: true });
+    await expect(t.query(api.receipts.searchLines, { dataset: "real", text: "בננה" })).rejects.toThrow();
+  });
+});

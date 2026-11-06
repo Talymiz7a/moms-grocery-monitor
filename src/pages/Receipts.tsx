@@ -1,9 +1,9 @@
 import { useQuery } from "convex/react";
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import { OpenReceiptButton } from "../components/ReceiptFile";
-import { ProductSearch } from "../components/ProductSearch";
+import { LineSearch } from "../components/LineSearch";
 import { ItemsInRange } from "../components/ItemsInRange";
 import { ReceiptStatusChips } from "../components/ReceiptStatus";
 import { Card, EmptyState, Field, Loading, PageHeader, inputClass, warnInputClass } from "../components/ui";
@@ -29,7 +29,6 @@ export function Receipts() {
   const fromInvalid = fromText.trim() !== "" && !from;
   const toInvalid = toText.trim() !== "" && !to;
   const rawRows = useQuery(api.receipts.list, { ...readArgs, filter, from, to });
-  const navigate = useNavigate();
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "date", dir: -1 });
   const [showItems, setShowItems] = useState(false);
   const rows = rawRows && sortRows(rawRows, sort);
@@ -49,9 +48,8 @@ export function Receipts() {
     <>
       <PageHeader title="קבלות ורכישות" subtitle="כל הקבלות עם קישור לקבלה המקורית" />
       <Card className="mb-4">
-        <div className="mb-4 max-w-xl">
-          <span className="mb-1 block font-medium">חיפוש מוצר — כל הרכישות שלו</span>
-          <ProductSearch onPick={(p) => navigate(`/analysis/products/${p._id}`)} placeholder="למשל: חלב, ביצים, קפה…" />
+        <div className="mb-4">
+          <LineSearch />
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="מתאריך" warn={fromInvalid ? "תאריך לא תקין (DD/MM/YYYY)" : undefined}>

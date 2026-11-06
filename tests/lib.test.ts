@@ -180,3 +180,19 @@ describe("date field mask", () => {
     expect(maskDayFirstDate("abc")).toBe("");
   });
 });
+
+describe("free-text search", () => {
+  test("singular and plural Hebrew forms find each other", async () => {
+    const { matchesSearch, searchTerms } = await import("../convex/lib/normalize");
+    expect(matchesSearch(searchTerms("בננה"), ["בננות"])).toBe(true);
+    expect(matchesSearch(searchTerms("בננות"), ["בננה"])).toBe(true);
+    expect(matchesSearch(searchTerms("עגבניות"), ["עגבניה אשכולות"])).toBe(true);
+    expect(matchesSearch(searchTerms("ביצים"), ["12 ביצי משק טריות"])).toBe(true);
+    expect(matchesSearch(searchTerms("חלב"), ["חלב נטול לקטוז 2%"])).toBe(true);
+    expect(matchesSearch(searchTerms("קוטג'"), ["גבינת קוטג 5%"])).toBe(true);
+    expect(matchesSearch(searchTerms("חלב 3%"), ["חלב טרי 3% 1 ליטר"])).toBe(true);
+    expect(matchesSearch(searchTerms("חלב 3%"), ["חלב 1%"])).toBe(false);
+    expect(matchesSearch(searchTerms("בננה"), ["תפוח עץ"])).toBe(false);
+    expect(matchesSearch(searchTerms(""), ["בננה"])).toBe(false);
+  });
+});

@@ -166,3 +166,29 @@ export function suggestMatches(
   }
   return results.sort((a, b) => b.score - a.score).slice(0, limit);
 }
+
+// After normalizeText final letters are regular ones, so "ים" is spelled "ימ".
+const PLURAL_SUFFIXES = ["יות", "ות", "ימ", "ה"];
+
+/**
+ * Search words for free-text search over receipt lines. Hebrew singular and
+ * plural forms share a stem ("בננה"/"בננות", "עגבניה"/"עגבניות"), so a common
+ * ending is dropped from words of four letters or more.
+ */
+export function searchTerms(text: string): string[] {
+  return normalizeText(text)
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => {
+      if (w.length < 4) return w;
+      const suffix = PLURAL_SUFFIXES.find((s) => w.endsWith(s) && w.length - s.length >= 3);
+      return suffix ? w.slice(0, -suffix.length) : w;
+    });
+}
+
+/** True when every search word appears in one of the texts. */
+export function matchesSearch(terms: string[], texts: string[]): boolean {
+  if (terms.length === 0) return false;
+  const hay = texts.map(normalizeText).join(" | ");
+  return terms.every((t) => hay.includes(t));
+}
