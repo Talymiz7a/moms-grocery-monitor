@@ -417,6 +417,8 @@ export const remove = mutation({
       .filter((q) => q.eq(q.field("duplicateOfId"), receiptId))
       .collect();
     for (const r of flagged) await ctx.db.patch(r._id, { duplicateOfId: undefined, duplicateReason: undefined });
+    // The downscaled copy made for automatic reading belongs to this receipt only.
+    if (receipt.ocrFileId && (await ctx.db.system.get(receipt.ocrFileId))) await ctx.storage.delete(receipt.ocrFileId);
     await ctx.db.delete(receiptId);
     const { ocrJson: _omit, ...snapshot } = receipt;
     await writeAudit(ctx, {

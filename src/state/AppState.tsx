@@ -8,7 +8,6 @@ type AppState = {
   dataset: Dataset;
   /** Arguments every read needs: the dataset, plus the editor code (required for real data). */
   readArgs: { dataset: Dataset; editorCode?: string };
-  setDataset: (d: Dataset) => void;
   /** Editor code for this browser tab; null = read-only. */
   editorCode: string | null;
   setEditorCode: (code: string | null) => void;
@@ -42,35 +41,25 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const status = useQuery(api.app.status, {});
   const openEditing = status?.openEditing === true;
   const [storedCode, setCode] = useState<string | null>(() => safeGet(() => sessionStorage, "editorCode"));
-  // The chosen dataset is kept for this tab; real data only opens in editor mode.
-  const [storedDataset, setDatasetState] = useState<Dataset>(() => (safeGet(() => sessionStorage, "dataset") === "real" ? "real" : "demo"));
   const editorCode = openEditing ? (storedCode ?? OPEN_EDITING_CODE) : storedCode;
-  const dataset: Dataset = storedDataset === "real" && editorCode !== null ? "real" : "demo";
+  // The app works on real data only (the demo option was removed at the owner's request).
+  const dataset: Dataset = "real";
 
-  const setDataset = useCallback((d: Dataset) => {
-    safeSet(() => sessionStorage, "dataset", d);
-    setDatasetState(d);
-  }, []);
   const setEditorCode = useCallback((code: string | null) => {
     safeSet(() => sessionStorage, "editorCode", code);
     setCode(code);
-    if (code === null) {
-      safeSet(() => sessionStorage, "dataset", "demo");
-      setDatasetState("demo");
-    }
   }, []);
 
   const value = useMemo(
     () => ({
       dataset,
       readArgs: editorCode ? { dataset, editorCode } : { dataset },
-      setDataset,
       editorCode,
       setEditorCode,
       isEditor: editorCode !== null,
       openEditing,
     }),
-    [dataset, setDataset, editorCode, setEditorCode, openEditing],
+    [dataset, editorCode, setEditorCode, openEditing],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

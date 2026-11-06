@@ -1,9 +1,8 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id, TableNames } from "./_generated/dataModel";
-import { action, internalAction, internalMutation, internalQuery, type ActionCtx } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, type ActionCtx } from "./_generated/server";
 import { confidenceValidator, lineTypeValidator, unitValidator, expectedUseValidator } from "./schema";
-import { requireEditor } from "./lib/access";
 import { generateDemoData, receiptText } from "./lib/demoData";
 import { reconcile } from "./lib/reconcile";
 import { renderReceiptSvg } from "./lib/receiptSvg";
@@ -269,11 +268,17 @@ export const seedIfEmpty = internalAction({
   },
 });
 
-/** Resets demo data from the Settings screen (editor only). */
-export const reset = action({
-  args: { editorCode: v.string() },
-  handler: async (ctx, { editorCode }): Promise<{ receipts: number }> => {
-    requireEditor(editorCode);
-    return { receipts: await seedDemo(ctx) };
+/**
+ * Deletes all demo records and their files, leaving real data untouched.
+ * Admin only (`npx convex run --prod demo:clear`); the app no longer offers demo data.
+ */
+export const clear = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ batches: number }> => {
+    for (let i = 1; i <= 500; i++) {
+      const { done } = await ctx.runMutation(internal.demo.clearBatch, {});
+      if (done) return { batches: i };
+    }
+    throw new Error("demo data not fully cleared; run again");
   },
 });

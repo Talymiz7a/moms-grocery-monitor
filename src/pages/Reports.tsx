@@ -25,7 +25,7 @@ const sev = (s: string) => (s === "high" ? "גבוהה" : s === "medium" ? "בי
 const pct = (cur: number, prev: number) => (prev === 0 ? (cur === 0 ? "0%" : "חדש") : `${cur >= prev ? "+" : ""}${Math.round(((cur - prev) / prev) * 100)}%`);
 
 export function Reports() {
-  const { dataset, readArgs } = useAppState();
+  const { readArgs } = useAppState();
   const base = useQuery(api.analytics.periodSummary, { ...readArgs });
   const [period, setPeriod] = useState<Period>({ mode: "all" });
   const [tab, setTab] = useState<TabKey>("monthly");
@@ -41,7 +41,7 @@ export function Reports() {
 
   const created = formatDateTime(Date.now());
   const periodText = from && to ? `מ-${formatIsoDate(from)} עד ${formatIsoDate(to)}` : "";
-  const meta = [`מעקב קניות אמא — דוח`, `תקופה: ${periodText}`, `נוצר: ${created}`, dataset === "demo" ? "נתוני הדגמה בדיוניים" : ""].filter(Boolean);
+  const meta = [`מעקב קניות אמא — דוח`, `תקופה: ${periodText}`, `נוצר: ${created}`].filter(Boolean);
 
   const tables: Record<TabKey, Table | null> = {
     monthly: data

@@ -50,7 +50,7 @@ describe("write protection", () => {
     const t = convexTest(schema, modules);
     await expect(t.mutation(api.files.generateUploadUrl, { editorCode: "" })).rejects.toThrow();
     await expect(t.mutation(api.files.createManualDraft, { editorCode: "wrong-code", dataset: "demo" })).rejects.toThrow();
-    await expect(t.action(api.demo.reset, { editorCode: "nope" })).rejects.toThrow();
+    await expect(t.mutation(api.receipts.remove, { editorCode: "nope", receiptId: (await t.mutation(api.files.createManualDraft, { editorCode: CODE, dataset: "real" })).receiptId })).rejects.toThrow();
   });
   test("all changes are refused when no editor code is configured", async () => {
     delete process.env.EDITOR_CODE;
@@ -175,10 +175,10 @@ describe("OCR is off unless explicitly enabled", () => {
 describe("demo data", () => {
   test("seeds five months, flags scenarios, and never touches real data", async () => {
     const t = convexTest(schema, modules);
-    // One real receipt that must survive a demo reset untouched.
+    // One real receipt that must survive reseeding untouched.
     const { receiptId: realId } = await t.mutation(api.files.createManualDraft, { editorCode: CODE, dataset: "real" });
     await t.action(internal.demo.seed, {});
-    await t.action(api.demo.reset, { editorCode: CODE });
+    await t.action(internal.demo.seed, {});
 
     const demo = await t.query(api.receipts.dashboardSummary, { dataset: "demo" });
     expect(demo.receiptCount).toBeGreaterThan(45);
@@ -458,5 +458,39 @@ describe("open editing (code switched off by the owner)", () => {
     }
     expect((await t.query(api.app.status, {})).openEditing).toBe(false);
     await expect(t.mutation(api.files.createManualDraft, { editorCode: "open-editing", dataset: "real" })).rejects.toThrow();
+  });
+});
+
+describe("clearing demo data", () => {
+  test("demo:clear deletes every demo record and file and keeps real data", async () => {
+    const t = convexTest(schema, modules);
+    const { receiptId: realId } = await t.mutation(api.files.createManualDraft, { editorCode: CODE, dataset: "real" });
+    await t.action(internal.demo.seed, {});
+    await t.action(internal.demo.clear, {});
+    const left = await t.run(async (ctx) => {
+      const counts: Record<string, number> = {};
+      for (const table of ["receipts", "receiptItems", "products", "alerts", "productExpectations", "settings", "auditLog"] as const) {
+        counts[table] = (await ctx.db.query(table).collect()).filter((d) => (d as { dataset?: string }).dataset === "demo").length;
+      }
+      return { counts, files: (await ctx.db.system.query("_storage").collect()).length };
+    });
+    expect(Object.values(left.counts).every((n) => n === 0)).toBe(true);
+    expect(left.files).toBe(0);
+    expect(await t.query(api.receipts.get, { editorCode: CODE, receiptId: realId })).not.toBeNull();
+  });
+
+  test("deleting a receipt removes its lines, original file and reading copy", async () => {
+    const t = convexTest(schema, modules);
+    const receiptId = await t.run(async (ctx) => {
+      const fileId = await ctx.storage.store(new Blob(["orig"], { type: "image/jpeg" }));
+      const ocrFileId = await ctx.storage.store(new Blob(["copy"], { type: "image/jpeg" }));
+      return ctx.db.insert("receipts", {
+        dataset: "real", purchaseDateSource: "missing", fileId, ocrFileId, fileType: "image/jpeg", ocrStatus: "not_run",
+        verificationStatus: "draft", uploadedAt: 0, updatedAt: 0, createdBy: "test",
+      });
+    });
+    await t.mutation(api.receipts.remove, { editorCode: CODE, receiptId });
+    expect(await t.run((ctx) => ctx.db.get(receiptId))).toBeNull();
+    expect(await t.run(async (ctx) => (await ctx.db.system.query("_storage").collect()).length)).toBe(0);
   });
 });

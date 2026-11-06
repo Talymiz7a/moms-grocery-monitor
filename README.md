@@ -149,13 +149,13 @@ Explained alerts stay closed unless their evidence changes. Alerts never infer i
 | Service | Resource | Notes |
 |---|---|---|
 | Convex | project `moms-grocery-monitor` (team `talymiz`) | production deployment backs the preview; dev deployment for development |
-| Vercel | project `moms-grocery-monitor` | preview: https://moms-grocery-monitor.vercel.app (demo data, read-only) |
+| Vercel | project `moms-grocery-monitor` | https://moms-grocery-monitor.vercel.app (real data only) |
 
 Deploy (from a machine logged in to both CLIs):
 
 ```bash
 npx convex deploy                 # push backend functions/schema to Convex production
-npx convex run --prod demo:seed   # (re)load demo data — replaces demo records only
+npx convex run --prod demo:clear  # delete all demo records and files (real data untouched)
 npx vercel deploy                 # preview deployment of the static site
 ```
 
@@ -193,7 +193,9 @@ npx convex dev          # creates/links a Convex deployment and regenerates conv
 npm run dev             # Vite dev server
 ```
 
-Load the demo data (five fictional months, 01/06/2026–28/10/2026):
+The app now shows real data only (the demo/real choice was removed at the owner's
+request). For local development the demo generator is still available in the dev
+deployment (five fictional months, 01/06/2026–28/10/2026):
 
 ```bash
 npx convex run demo:seed

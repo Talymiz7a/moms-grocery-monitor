@@ -21,7 +21,7 @@ function navClass({ isActive }: { isActive: boolean }) {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { dataset, isEditor, setEditorCode, openEditing } = useAppState();
+  const { isEditor, setEditorCode, openEditing } = useAppState();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
@@ -36,11 +36,6 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="ms-auto flex items-center gap-2">
-            {dataset === "demo" ? (
-              <span className="hidden rounded-full bg-review-50 px-3 py-1 text-sm font-semibold text-review-700 sm:inline">נתוני הדגמה</span>
-            ) : (
-              <span className="rounded-full bg-brand-500 px-3 py-1 text-sm font-semibold text-white">נתונים אמיתיים</span>
-            )}
             {openEditing ? (
               <span className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-ok-700/30 bg-ok-50 px-3 font-medium text-ok-700" title="העריכה פתוחה ללא קוד">
                 <Icon name="unlock" />
@@ -80,22 +75,6 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </nav>
       </header>
-
-      {dataset === "real" && (
-        <div className="border-b border-brand-100 bg-brand-50">
-          <p className="mx-auto max-w-7xl px-4 py-2 text-sm text-brand-700">
-            <strong>נתונים אמיתיים:</strong> מוצגות רק קבלות שהועלו כנתונים אמיתיים. נתוני ההדגמה אינם נכללים כאן. ניתן לחזור להדגמה בהגדרות.
-          </p>
-        </div>
-      )}
-      {dataset === "demo" && (
-        <div className="border-b border-review-200 bg-review-50">
-          <p className="mx-auto max-w-7xl px-4 py-2 text-sm text-review-700">
-            <strong>מצב הדגמה:</strong> כל הקבלות והמוצרים כאן בדיוניים (בין <span className="num">01/06/2026</span> ל-<span className="num">28/10/2026</span>) ואינם נכללים בנתונים אמיתיים.
-            {!isEditor && " התצוגה לצפייה בלבד — לא ניתן לשנות או למחוק נתונים."}
-          </p>
-        </div>
-      )}
 
       <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
         <aside className="hidden w-56 shrink-0 lg:block">

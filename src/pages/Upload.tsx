@@ -156,16 +156,6 @@ export function Upload() {
             העלאת קבלות זמינה רק במצב עריכה. בתצוגה הציבורית אי אפשר להוסיף, לשנות או למחוק נתונים.
           </Notice>
         )}
-        {dataset === "demo" && isEditor && (
-          <Notice tone="review" title="מצב הדגמה">
-            קבלות שמועלות עכשיו נשמרות כנתוני הדגמה ונמחקות באיפוס ההדגמה. לקבלות אמיתיות עברו קודם ל"נתונים אמיתיים" בהגדרות.
-          </Notice>
-        )}
-        {dataset === "real" && isEditor && (
-          <Notice tone="brand" title="נתונים אמיתיים">
-            הקבלה תישמר כנתונים אמיתיים, נפרד מההדגמה. הצפייה בה דורשת קוד עורך.
-          </Notice>
-        )}
         <Card>
           <div className="grid gap-3 sm:grid-cols-3">
             <button

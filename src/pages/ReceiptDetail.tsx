@@ -1,11 +1,12 @@
-import { useQuery } from "convex/react";
-import { Link, useParams } from "react-router-dom";
+import { useMutation, useQuery } from "convex/react";
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { ReceiptFileViewer } from "../components/ReceiptFile";
 import { ReceiptStatusChips } from "../components/ReceiptStatus";
-import { Card, Chip, LinkButton, Loading, Notice, PageHeader } from "../components/ui";
-import { CONFIDENCE_LABELS, LINE_TYPE_LABELS, formatDateTime, formatIls, formatIsoDate, formatQuantity } from "../lib/format";
+import { Button, Card, Chip, LinkButton, Loading, Notice, PageHeader } from "../components/ui";
+import { CONFIDENCE_LABELS, LINE_TYPE_LABELS, errorMessage, formatDateTime, formatIls, formatIsoDate, formatQuantity } from "../lib/format";
 import { useAppState } from "../state/AppState";
 import { ReconciliationPanel } from "./Review";
 
@@ -14,6 +15,10 @@ export function ReceiptDetail() {
   const receiptId = id as Id<"receipts">;
   const { isEditor, editorCode } = useAppState();
   const data = useQuery(api.receipts.get, { receiptId, editorCode: editorCode ?? undefined });
+  const removeReceipt = useMutation(api.receipts.remove);
+  const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   if (data === undefined) return <Loading />;
   if (data === null) return <Notice tone="alert" title="הקבלה לא נמצאה" />;
   const { receipt: r, items, duplicateOf, audit } = data;
@@ -23,6 +28,20 @@ export function ReceiptDetail() {
     differenceAgorot: r.reconciliation?.differenceAgorot ?? null,
     duplicateSuspected: !!r.duplicateOfId && !r.duplicateOverride,
   };
+
+  async function deleteReceipt() {
+    if (!editorCode) return;
+    if (!window.confirm("למחוק את הקבלה ואת כל השורות שלה? לא ניתן לבטל את המחיקה.")) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await removeReceipt({ editorCode, receiptId });
+      navigate("/receipts");
+    } catch (e) {
+      setDeleteError(errorMessage(e));
+      setDeleting(false);
+    }
+  }
 
   return (
     <>
@@ -35,9 +54,15 @@ export function ReceiptDetail() {
             <LinkButton to={`/receipts/${receiptId}/review`} icon={isEditor ? "edit" : "eye"} variant="primary">
               {isEditor ? "בדיקה ועריכה" : "מסך הבדיקה"}
             </LinkButton>
+            {isEditor && (
+              <Button variant="danger" icon="trash" onClick={deleteReceipt} disabled={deleting}>
+                {deleting ? "מוחק…" : "מחיקת קבלה"}
+              </Button>
+            )}
           </>
         }
       />
+      {deleteError && <p className="mb-4 font-medium text-alert-600" role="alert">{deleteError}</p>}
       {duplicateOf && !r.duplicateOverride && (
         <div className="mb-4">
           <Notice tone="alert" icon="copy" title="ייתכן שזו קבלה כפולה">
