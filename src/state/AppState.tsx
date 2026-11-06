@@ -1,4 +1,6 @@
+import { useQuery } from "convex/react";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { api } from "../../convex/_generated/api";
 
 export type Dataset = "demo" | "real";
 
@@ -11,7 +13,12 @@ type AppState = {
   editorCode: string | null;
   setEditorCode: (code: string | null) => void;
   isEditor: boolean;
+  /** The owner switched the editor code off: everyone can edit. */
+  openEditing: boolean;
 };
+
+/** Sent instead of a code when editing is open; the server accepts any value then. */
+const OPEN_EDITING_CODE = "open-editing";
 
 const Ctx = createContext<AppState | null>(null);
 
@@ -32,11 +39,13 @@ function safeSet(storage: () => Storage, key: string, value: string | null) {
 }
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [editorCode, setCode] = useState<string | null>(() => safeGet(() => sessionStorage, "editorCode"));
-  // Real data can only be opened in editor mode; the choice is kept for this tab.
-  const [dataset, setDatasetState] = useState<Dataset>(() =>
-    safeGet(() => sessionStorage, "dataset") === "real" && safeGet(() => sessionStorage, "editorCode") ? "real" : "demo",
-  );
+  const status = useQuery(api.app.status, {});
+  const openEditing = status?.openEditing === true;
+  const [storedCode, setCode] = useState<string | null>(() => safeGet(() => sessionStorage, "editorCode"));
+  // The chosen dataset is kept for this tab; real data only opens in editor mode.
+  const [storedDataset, setDatasetState] = useState<Dataset>(() => (safeGet(() => sessionStorage, "dataset") === "real" ? "real" : "demo"));
+  const editorCode = openEditing ? (storedCode ?? OPEN_EDITING_CODE) : storedCode;
+  const dataset: Dataset = storedDataset === "real" && editorCode !== null ? "real" : "demo";
 
   const setDataset = useCallback((d: Dataset) => {
     safeSet(() => sessionStorage, "dataset", d);
@@ -59,8 +68,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       editorCode,
       setEditorCode,
       isEditor: editorCode !== null,
+      openEditing,
     }),
-    [dataset, setDataset, editorCode, setEditorCode],
+    [dataset, setDataset, editorCode, setEditorCode, openEditing],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

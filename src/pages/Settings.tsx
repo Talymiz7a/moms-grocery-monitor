@@ -7,7 +7,7 @@ import { errorMessage } from "../lib/format";
 import { useAppState } from "../state/AppState";
 
 export function Settings() {
-  const { dataset, setDataset, isEditor, editorCode, setEditorCode } = useAppState();
+  const { dataset, setDataset, isEditor, editorCode, setEditorCode, openEditing } = useAppState();
   const status = useQuery(api.app.status, {});
   const resetDemo = useAction(api.demo.reset);
   const [busy, setBusy] = useState(false);
@@ -63,14 +63,20 @@ export function Settings() {
 
         <Card>
           <h2 className="mb-3 text-xl font-bold">גישה ועריכה</h2>
-          <p className="mb-3 text-ink-soft">
-            התצוגה פתוחה לצפייה ללא כניסה. כל שינוי דורש קוד עורך שמוגדר בשרת. זהו פתרון זמני לתצוגה המקדימה — לפני שימוש בקבלות אמיתיות תוגדר הזדהות מלאה.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
+          {openEditing ? (
+            <Notice tone="review" icon="unlock" title="הקוד בוטל — העריכה פתוחה">
+              כל מי שיש לו את הקישור לאפליקציה יכול לצפות בכל הנתונים, כולל קבלות אמיתיות, ולשנות או למחוק אותם. אפשר להחזיר את הקוד בכל עת.
+            </Notice>
+          ) : (
+            <p className="mb-3 text-ink-soft">
+              התצוגה פתוחה לצפייה ללא כניסה. כל שינוי דורש קוד עורך שמוגדר בשרת. זהו פתרון זמני לתצוגה המקדימה — לפני שימוש בקבלות אמיתיות תוגדר הזדהות מלאה.
+            </p>
+          )}
+          {!openEditing && <div className="flex flex-wrap items-center gap-2">
             {isEditor ? <Chip tone="ok">מצב עריכה פעיל</Chip> : <Chip>צפייה בלבד</Chip>}
             {status && !status.editingConfigured && <Chip tone="review">קוד עורך לא הוגדר בשרת</Chip>}
             {isEditor && <Button variant="ghost" onClick={() => setEditorCode(null)}>יציאה ממצב עריכה</Button>}
-          </div>
+          </div>}
         </Card>
 
         <Card>

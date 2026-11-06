@@ -21,7 +21,7 @@ function navClass({ isActive }: { isActive: boolean }) {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { dataset, isEditor, setEditorCode } = useAppState();
+  const { dataset, isEditor, setEditorCode, openEditing } = useAppState();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
@@ -41,7 +41,12 @@ export function Layout({ children }: { children: ReactNode }) {
             ) : (
               <span className="rounded-full bg-brand-500 px-3 py-1 text-sm font-semibold text-white">נתונים אמיתיים</span>
             )}
-            {isEditor ? (
+            {openEditing ? (
+              <span className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-ok-700/30 bg-ok-50 px-3 font-medium text-ok-700" title="העריכה פתוחה ללא קוד">
+                <Icon name="unlock" />
+                <span className="hidden sm:inline">עריכה פתוחה</span>
+              </span>
+            ) : isEditor ? (
               <button
                 type="button"
                 onClick={() => setEditorCode(null)}

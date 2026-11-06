@@ -170,6 +170,7 @@ Set in the **Convex dashboard → Settings → Environment Variables** (never in
 | Variable | Required | Purpose |
 |---|---|---|
 | `EDITOR_CODE` | yes | Code that unlocks editing (min. 8 chars). Unset = everything read-only. |
+| `EDITOR_CODE_REQUIRED` | no | `false` switches the code off: anyone with the link can view and edit all data, real receipts included. Remove it (or set `true`) to require the code again. |
 | `FILE_LINK_SECRET` | yes | Random secret (≥16 chars) for signing receipt-file links. |
 | `GEMINI_API_KEY` | no | Key from Google AI Studio, created in a project **without billing** (free tier). Enables smart reading. |
 | `GEMINI_OCR_ENABLED` | no | `false` switches Gemini reading off without removing the key. |

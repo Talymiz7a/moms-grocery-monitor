@@ -8,6 +8,14 @@
 
 import { ConvexError } from "convex/values";
 
+/**
+ * EDITOR_CODE_REQUIRED=false: the owner chose to drop the code. Anyone with
+ * the link can then view and change all data, real receipts included.
+ */
+export function isOpenEditing(): boolean {
+  return process.env.EDITOR_CODE_REQUIRED?.trim().toLowerCase() === "false";
+}
+
 function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -16,6 +24,7 @@ function constantTimeEqual(a: string, b: string): boolean {
 }
 
 export function isEditorCodeValid(code: string | undefined | null): boolean {
+  if (isOpenEditing()) return true;
   const expected = process.env.EDITOR_CODE;
   if (!expected || expected.length < 8 || !code) return false;
   return constantTimeEqual(code, expected);

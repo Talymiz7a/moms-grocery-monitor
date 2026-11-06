@@ -442,3 +442,21 @@ describe("real data is protected", () => {
     expect(await t.query(api.receipts.list, { dataset: "demo" })).toEqual([]);
   });
 });
+
+describe("open editing (code switched off by the owner)", () => {
+  test("EDITOR_CODE_REQUIRED=false lets anyone edit and read real data; otherwise the code is required", async () => {
+    const t = convexTest(schema, modules);
+    await expect(t.mutation(api.files.createManualDraft, { editorCode: "wrong-code-000", dataset: "real" })).rejects.toThrow();
+    process.env.EDITOR_CODE_REQUIRED = "false";
+    try {
+      expect((await t.query(api.app.status, {})).openEditing).toBe(true);
+      const { receiptId } = await t.mutation(api.files.createManualDraft, { editorCode: "open-editing", dataset: "real" });
+      expect(receiptId).toBeTruthy();
+      expect(await t.mutation(api.app.verifyEditorCode, { code: "anything" })).toEqual({ valid: true });
+    } finally {
+      delete process.env.EDITOR_CODE_REQUIRED;
+    }
+    expect((await t.query(api.app.status, {})).openEditing).toBe(false);
+    await expect(t.mutation(api.files.createManualDraft, { editorCode: "open-editing", dataset: "real" })).rejects.toThrow();
+  });
+});

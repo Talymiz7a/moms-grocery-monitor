@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalQuery, mutation, query } from "./_generated/server";
-import { isEditorCodeValid } from "./lib/access";
+import { isEditorCodeValid, isOpenEditing } from "./lib/access";
 import { geminiUsedThisMonth } from "./aiUsage";
 import { geminiApiKey, geminiConfig, ocrConfig } from "./lib/config";
 import { fileLinkSecret } from "./lib/fileLinks";
@@ -12,7 +12,8 @@ export const status = query({
     const ocr = ocrConfig();
     const gemini = geminiConfig();
     return {
-      editingConfigured: !!process.env.EDITOR_CODE && process.env.EDITOR_CODE.length >= 8,
+      editingConfigured: isOpenEditing() || (!!process.env.EDITOR_CODE && process.env.EDITOR_CODE.length >= 8),
+      openEditing: isOpenEditing(),
       fileLinksConfigured: fileLinkSecret() !== null,
       ocrEnabled: ocr.enabled,
       ocrModel: ocr.model,
