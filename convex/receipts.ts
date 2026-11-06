@@ -346,6 +346,8 @@ export const saveReview = mutation({
       reconciliation,
       itemCount: lines.length,
       verificationStatus: finalize ? "verified" : "draft",
+      // Approval means a person checked the header, so reading doubts are cleared.
+      ...(finalize ? { headerLowConfidence: [] } : {}),
       ocrStatus: receipt.ocrStatus === "not_run" ? "manual" : receipt.ocrStatus,
       duplicateOfId: duplicate?.id,
       duplicateReason: duplicate?.reason,

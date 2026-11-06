@@ -105,6 +105,7 @@ export function Review() {
   const [params] = useSearchParams();
   const [ocrProgress, setOcrProgress] = useState<OcrProgress | null>(null);
 
+  const [checkedHeader, setCheckedHeader] = useState<Set<string>>(new Set());
   const [header, setHeader] = useState<HeaderState | null>(null);
   const [lines, setLines] = useState<EditLine[]>([]);
   const [dirty, setDirty] = useState(false);
@@ -146,6 +147,7 @@ export function Review() {
       })),
     );
     setInitKey(k);
+    setCheckedHeader(new Set());
     setDirty(false);
   }, [data, initKey, dirty]);
 
@@ -174,7 +176,9 @@ export function Review() {
   const r = data.receipt;
   const readOnly = !isEditor;
   const verified = r.verificationStatus === "verified";
-  const headerLow = new Set(r.headerLowConfidence ?? []);
+  // Fields the automatic reading was unsure of; the warning goes once the
+  // person edits the field, and approved receipts show none.
+  const headerLow = new Set(verified ? [] : (r.headerLowConfidence ?? []).filter((f) => !checkedHeader.has(f)));
 
   const validation: string[] = [];
   if (header.dateText.trim() && !headerDate) validation.push("תאריך הקנייה אינו תקין (DD/MM/YYYY)");
@@ -219,6 +223,7 @@ export function Review() {
 
   function updateHeader(patch: Partial<HeaderState>) {
     setHeader((h) => (h ? { ...h, ...patch } : h));
+    setCheckedHeader((c) => new Set([...c, ...Object.keys(patch).map((k) => HEADER_FIELD[k] ?? k)]));
     setDirty(true);
   }
   function updateLine(key: string, patch: Partial<EditLine>, valueEdit = true) {
@@ -500,7 +505,7 @@ export function Review() {
               )}
             </div>
             <fieldset disabled={readOnly} className="grid gap-4 sm:grid-cols-2">
-              <Field label="חנות" warn={headerLow.has("storeName") ? "ודאות נמוכה — בדקו" : undefined}>
+              <Field label="חנות" warn={headerLow.has("storeName") ? LOW_CONFIDENCE_HINT : undefined}>
                 <input className={`${inputClass} ${headerLow.has("storeName") ? warnInputClass : ""}`} value={header.storeName} onChange={(e) => updateHeader({ storeName: e.target.value })} />
               </Field>
               <Field
@@ -511,7 +516,7 @@ export function Review() {
                     ? "תאריך לא תקין"
                     : !header.dateText.trim()
                       ? "חסר תאריך — הזינו אותו מהקבלה אם אפשר"
-                      : headerLow.has("purchaseDate") ? "ודאות נמוכה — בדקו" : undefined
+                      : headerLow.has("purchaseDate") ? LOW_CONFIDENCE_HINT : undefined
                 }
               >
                 <input
@@ -523,10 +528,10 @@ export function Review() {
                   onChange={(e) => updateHeader({ dateText: maskDayFirstDate(e.target.value) })}
                 />
               </Field>
-              <Field label="מספר קבלה" warn={headerLow.has("receiptNumber") ? "ודאות נמוכה — בדקו" : undefined}>
+              <Field label="מספר קבלה" warn={headerLow.has("receiptNumber") ? LOW_CONFIDENCE_HINT : undefined}>
                 <input className={`${inputClass} num text-end ${headerLow.has("receiptNumber") ? warnInputClass : ""}`} value={header.receiptNumber} onChange={(e) => updateHeader({ receiptNumber: e.target.value })} />
               </Field>
-              <Field label="סכום כולל מודפס (₪)" warn={header.totalText.trim() && headerTotal === null ? "סכום לא תקין" : !header.totalText.trim() ? "חסר סכום כולל" : headerLow.has("total") ? "ודאות נמוכה — בדקו" : undefined}>
+              <Field label="סכום כולל מודפס (₪)" warn={header.totalText.trim() && headerTotal === null ? "סכום לא תקין" : !header.totalText.trim() ? "חסר סכום כולל" : headerLow.has("total") ? LOW_CONFIDENCE_HINT : undefined}>
                 <input className={`${inputClass} num text-end ${headerTotal === null ? warnInputClass : ""}`} inputMode="decimal" value={header.totalText} onChange={(e) => updateHeader({ totalText: e.target.value })} />
               </Field>
               <Field label="קונה (רשות)">
@@ -803,3 +808,8 @@ export function ReconciliationPanel({ rec }: { rec: Pick<Reconciliation, "status
 function canAutoLink(l: EditLine): boolean {
   return (l.lineType === "item" || l.lineType === "return") && l.product.kind === "none" && l.originalDescription.trim() !== "";
 }
+
+const LOW_CONFIDENCE_HINT = "הקריאה האוטומטית לא בטוחה בערך הזה — השוו לקבלה";
+
+/** Form field → the header field name the reader flags. */
+const HEADER_FIELD: Record<string, string> = { dateText: "purchaseDate", totalText: "total", storeName: "storeName", receiptNumber: "receiptNumber" };

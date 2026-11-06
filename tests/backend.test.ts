@@ -517,3 +517,21 @@ describe("receipt line search", () => {
     await expect(t.query(api.receipts.searchLines, { dataset: "real", text: "בננה" })).rejects.toThrow();
   });
 });
+
+describe("reading doubts after approval", () => {
+  test("approving a receipt clears the header fields flagged as uncertain", async () => {
+    const t = convexTest(schema, modules);
+    const receiptId = await t.run((ctx) =>
+      ctx.db.insert("receipts", {
+        dataset: "real", purchaseDate: "2026-11-05", purchaseDateSource: "ocr", storeName: "שופרסל שלי", totalAgorot: 18711,
+        ocrStatus: "done", headerLowConfidence: ["purchaseDate", "receiptNumber"], verificationStatus: "draft", uploadedAt: 0, updatedAt: 0, createdBy: "test",
+      }),
+    );
+    const header = { storeName: "שופרסל שלי", purchaseDate: "2026-11-05", totalAgorot: 18711 };
+    const line = { originalDescription: "בננה", lineType: "item" as const, quantity: 1, unit: "unit" as const, unitPriceAgorot: 18711, lineTotalAgorot: 18711, confidence: "high" as const, lowConfidenceFields: [], corrected: false, product: { kind: "none" as const } };
+    await t.mutation(api.receipts.saveReview, { editorCode: CODE, receiptId, header, lines: [line], finalize: false });
+    expect((await t.run((ctx) => ctx.db.get(receiptId)))!.headerLowConfidence).toEqual(["purchaseDate", "receiptNumber"]);
+    await t.mutation(api.receipts.saveReview, { editorCode: CODE, receiptId, header, lines: [line], finalize: true });
+    expect((await t.run((ctx) => ctx.db.get(receiptId)))!.headerLowConfidence).toEqual([]);
+  });
+});
