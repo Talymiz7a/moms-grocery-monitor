@@ -16,6 +16,7 @@ import {
   formatIls,
   formatIsoDate,
   fromAgorot,
+  maskDayFirstDate,
   parseDayFirstDate,
   parseShekelInput,
 } from "../lib/format";
@@ -489,8 +490,9 @@ export function Review() {
                   className={`${inputClass} num text-end ${!headerDate ? warnInputClass : ""}`}
                   inputMode="numeric"
                   placeholder="DD/MM/YYYY"
+                  maxLength={10}
                   value={header.dateText}
-                  onChange={(e) => updateHeader({ dateText: e.target.value })}
+                  onChange={(e) => updateHeader({ dateText: maskDayFirstDate(e.target.value) })}
                 />
               </Field>
               <Field label="מספר קבלה" warn={headerLow.has("receiptNumber") ? "ודאות נמוכה — בדקו" : undefined}>

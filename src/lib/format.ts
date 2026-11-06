@@ -1,4 +1,4 @@
-export { formatIsoDate, parseDayFirstDate, isValidIsoDate } from "../../convex/lib/dates";
+export { formatIsoDate, maskDayFirstDate, parseDayFirstDate, isValidIsoDate } from "../../convex/lib/dates";
 export { formatIls, parseShekelInput, toAgorot, fromAgorot } from "../../convex/lib/money";
 
 export const UNIT_LABELS: Record<string, string> = {

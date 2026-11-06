@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { Button, Card, Chip, EmptyState, Field, Loading, Notice, PageHeader, inputClass, warnInputClass } from "../components/ui";
-import { UNIT_LABELS, errorMessage, formatDateTime, formatIls, formatIsoDate, parseDayFirstDate } from "../lib/format";
+import { UNIT_LABELS, errorMessage, formatDateTime, formatIls, formatIsoDate, maskDayFirstDate, parseDayFirstDate } from "../lib/format";
 import { useAppState } from "../state/AppState";
 
 export const ALERT_TYPES: Record<string, string> = {
@@ -100,10 +100,10 @@ export function Alerts() {
             </select>
           </label>
           <Field label="מתאריך" warn={fromText.trim() && !from ? "DD/MM/YYYY" : undefined}>
-            <input className={`${inputClass} ${fromText.trim() && !from ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" value={fromText} onChange={(e) => setFromText(e.target.value)} />
+            <input className={`${inputClass} ${fromText.trim() && !from ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" maxLength={10} value={fromText} onChange={(e) => setFromText(maskDayFirstDate(e.target.value))} />
           </Field>
           <Field label="עד תאריך" warn={toText.trim() && !to ? "DD/MM/YYYY" : undefined}>
-            <input className={`${inputClass} ${toText.trim() && !to ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" value={toText} onChange={(e) => setToText(e.target.value)} />
+            <input className={`${inputClass} ${toText.trim() && !to ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" maxLength={10} value={toText} onChange={(e) => setToText(maskDayFirstDate(e.target.value))} />
           </Field>
         </div>
       </Card>

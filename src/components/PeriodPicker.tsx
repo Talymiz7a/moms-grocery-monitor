@@ -1,5 +1,5 @@
 import { HEBREW_MONTHS, formatIsoDate } from "../../convex/lib/dates";
-import { parseDayFirstDate } from "../lib/format";
+import { maskDayFirstDate, parseDayFirstDate } from "../lib/format";
 import { inputClass, warnInputClass } from "./ui";
 
 export type Period = { mode: "all" | "month" | "year" | "custom"; month?: string; year?: number; fromText?: string; toText?: string };
@@ -65,8 +65,8 @@ export function PeriodPicker({ value, onChange, months }: { value: Period; onCha
       )}
       {value.mode === "custom" && (
         <>
-          <input className={`${inputClass} w-36 ${value.fromText && !parseDayFirstDate(value.fromText) ? warnInputClass : ""}`} inputMode="numeric" placeholder="מ- DD/MM/YYYY" aria-label="מתאריך" value={value.fromText ?? ""} onChange={(e) => onChange({ ...value, fromText: e.target.value })} />
-          <input className={`${inputClass} w-36 ${value.toText && !parseDayFirstDate(value.toText) ? warnInputClass : ""}`} inputMode="numeric" placeholder="עד DD/MM/YYYY" aria-label="עד תאריך" value={value.toText ?? ""} onChange={(e) => onChange({ ...value, toText: e.target.value })} />
+          <input className={`${inputClass} w-36 ${value.fromText && !parseDayFirstDate(value.fromText) ? warnInputClass : ""}`} inputMode="numeric" placeholder="מ- DD/MM/YYYY" aria-label="מתאריך" value={value.fromText ?? ""} maxLength={10} onChange={(e) => onChange({ ...value, fromText: maskDayFirstDate(e.target.value) })} />
+          <input className={`${inputClass} w-36 ${value.toText && !parseDayFirstDate(value.toText) ? warnInputClass : ""}`} inputMode="numeric" placeholder="עד DD/MM/YYYY" aria-label="עד תאריך" value={value.toText ?? ""} maxLength={10} onChange={(e) => onChange({ ...value, toText: maskDayFirstDate(e.target.value) })} />
           {!r.valid && (value.fromText || value.toText) && <span className="pb-2 text-sm font-medium text-review-700">הזינו טווח תקין</span>}
         </>
       )}

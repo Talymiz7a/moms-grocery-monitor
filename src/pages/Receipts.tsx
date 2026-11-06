@@ -7,7 +7,7 @@ import { ProductSearch } from "../components/ProductSearch";
 import { ItemsInRange } from "../components/ItemsInRange";
 import { ReceiptStatusChips } from "../components/ReceiptStatus";
 import { Card, EmptyState, Field, Loading, PageHeader, inputClass, warnInputClass } from "../components/ui";
-import { formatIls, formatIsoDate, parseDayFirstDate } from "../lib/format";
+import { formatIls, formatIsoDate, maskDayFirstDate, parseDayFirstDate } from "../lib/format";
 import { useAppState } from "../state/AppState";
 
 const FILTERS = [
@@ -55,10 +55,10 @@ export function Receipts() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="מתאריך" warn={fromInvalid ? "תאריך לא תקין (DD/MM/YYYY)" : undefined}>
-            <input className={`${inputClass} ${fromInvalid ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" value={fromText} onChange={(e) => setFromText(e.target.value)} />
+            <input className={`${inputClass} ${fromInvalid ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" maxLength={10} value={fromText} onChange={(e) => setFromText(maskDayFirstDate(e.target.value))} />
           </Field>
           <Field label="עד תאריך" warn={toInvalid ? "תאריך לא תקין (DD/MM/YYYY)" : undefined}>
-            <input className={`${inputClass} ${toInvalid ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" value={toText} onChange={(e) => setToText(e.target.value)} />
+            <input className={`${inputClass} ${toInvalid ? warnInputClass : ""}`} inputMode="numeric" placeholder="DD/MM/YYYY" maxLength={10} value={toText} onChange={(e) => setToText(maskDayFirstDate(e.target.value))} />
           </Field>
           <div className="sm:col-span-2">
             <span className="mb-1 block font-medium">מצב</span>

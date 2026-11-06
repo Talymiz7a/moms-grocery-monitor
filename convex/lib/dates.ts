@@ -57,3 +57,21 @@ export const HEBREW_MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
 ];
+
+const MASK_RE = /^(\d{0,2}|\d{2}\/\d{0,2}|\d{2}\/\d{2}\/\d{0,4})$/;
+
+/**
+ * Formats a date field as it is typed: only digits are needed and the
+ * slashes are added automatically ("23102026" → "23/10/2026"). A date typed
+ * or pasted with its own separators ("1.5.2026") is tidied to DD/MM/YYYY.
+ */
+export function maskDayFirstDate(input: string): string {
+  if (!MASK_RE.test(input)) {
+    const iso = parseDayFirstDate(input);
+    if (iso) return formatIsoDate(iso);
+  }
+  const digits = input.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}

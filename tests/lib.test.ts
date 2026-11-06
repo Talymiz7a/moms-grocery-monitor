@@ -162,3 +162,21 @@ describe("demo data", () => {
     expect([...sameDay.values()].some((n) => n > 1)).toBe(true);
   });
 });
+
+describe("date field mask", () => {
+  test("adds the slashes while typing digits only", async () => {
+    const { maskDayFirstDate } = await import("../convex/lib/dates");
+    const typed = "23102026".split("").reduce<string[]>((acc, ch) => [...acc, maskDayFirstDate((acc.at(-1) ?? "") + ch)], []);
+    expect(typed).toEqual(["2", "23", "23/1", "23/10", "23/10/2", "23/10/20", "23/10/202", "23/10/2026"]);
+    expect(maskDayFirstDate("23/10/20261")).toBe("23/10/2026");
+  });
+  test("deleting works and pasted dates are tidied", async () => {
+    const { maskDayFirstDate } = await import("../convex/lib/dates");
+    expect(maskDayFirstDate("23/10/")).toBe("23/10");
+    expect(maskDayFirstDate("23/1")).toBe("23/1");
+    expect(maskDayFirstDate("1.5.2026")).toBe("01/05/2026");
+    expect(maskDayFirstDate("1/5/26")).toBe("01/05/2026");
+    expect(maskDayFirstDate("")).toBe("");
+    expect(maskDayFirstDate("abc")).toBe("");
+  });
+});
