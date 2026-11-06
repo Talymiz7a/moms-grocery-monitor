@@ -189,6 +189,33 @@ export function Review() {
     if (l.product.kind === "new" && !l.product.canonicalName.trim()) validation.push(`שורה ${i + 1}: חסר שם למוצר החדש`);
   });
   const unmatched = lines.filter((l) => l.lineType !== "discount" && l.product.kind === "none").length;
+  const linkable = lines.filter(canAutoLink).length;
+
+  /**
+   * Links every unlinked product line at once: to an existing product when
+   * the match is exact or strong, otherwise to a new product named as
+   * printed. Nothing is saved until the person presses save.
+   */
+  function linkAll() {
+    let existing = 0;
+    let created = 0;
+    const next = lines.map((l): EditLine => {
+      if (!canAutoLink(l)) return l;
+      const best = suggestMatches(l.originalDescription, candidates, 1)[0];
+      if (best && (best.kind === "exact" || best.kind === "strong")) {
+        existing++;
+        return { ...l, product: { kind: "existing", productId: best.id as Id<"products"> } };
+      }
+      created++;
+      return { ...l, product: { kind: "new", canonicalName: l.originalDescription.trim().replace(/\s+/g, " "), unit: l.unit } };
+    });
+    setLines(next);
+    setDirty(true);
+    setError(null);
+    setMessage(
+      `שויכו ${existing + created} שורות: ${existing} למוצרים קיימים, ${created} כמוצרים חדשים בשם המודפס. אפשר לשנות כל שורה; השיוך נשמר רק אחרי לחיצה על שמירה.`,
+    );
+  }
 
   function updateHeader(patch: Partial<HeaderState>) {
     setHeader((h) => (h ? { ...h, ...patch } : h));
@@ -514,7 +541,14 @@ export function Review() {
           <Card>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-xl font-bold">שורות ({lines.length})</h2>
-              {unmatched > 0 && <Chip tone="review">{unmatched} שורות לא שויכו למוצר</Chip>}
+              <div className="flex flex-wrap items-center gap-2">
+                {unmatched > 0 && <Chip tone="review">{unmatched} שורות לא שויכו למוצר</Chip>}
+                {!readOnly && linkable > 0 && (
+                  <Button variant="secondary" icon="check" onClick={linkAll} disabled={busy !== null}>
+                    שייך את כל השורות ({linkable})
+                  </Button>
+                )}
+              </div>
             </div>
             {!verified && data.ocrUnrecognized.length > 0 && (
               <div className="mb-4 rounded-xl border border-review-200 bg-review-50 p-3">
@@ -757,4 +791,9 @@ export function ReconciliationPanel({ rec }: { rec: Pick<Reconciliation, "status
       </p>
     </div>
   );
+}
+
+/** Product lines that are not linked yet and have wording to link by. */
+function canAutoLink(l: EditLine): boolean {
+  return (l.lineType === "item" || l.lineType === "return") && l.product.kind === "none" && l.originalDescription.trim() !== "";
 }
