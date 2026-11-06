@@ -550,6 +550,12 @@ export function Review() {
                 )}
               </div>
             </div>
+            {unmatched > 0 && (
+              <p className="-mt-2 mb-4 text-sm text-ink-soft">
+                {unmatched === lines.length ? `אף אחת מ-${lines.length} השורות` : `${unmatched} מתוך ${lines.length} השורות`} עוד לא חוברה למוצר ברשימת המוצרים, ולכן לא נספרת בניתוח המוצרים, בגרף ובהתראות.
+                {!readOnly && linkable > 0 && ` הכפתור "שייך את כל השורות" מחבר את כולן בבת אחת: למוצר קיים מתאים, או למוצר חדש בשם המודפס.`}
+              </p>
+            )}
             {!verified && data.ocrUnrecognized.length > 0 && (
               <div className="mb-4 rounded-xl border border-review-200 bg-review-50 p-3">
                 <p className="font-semibold text-review-700">שורות שהקריאה לא הצליחה לפענח ({data.ocrUnrecognized.length})</p>
