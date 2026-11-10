@@ -1,0 +1,5 @@
+requests>=2.31
+lxml>=5.0
+pillow>=10.0
+# לא חובה: קריאה אוטומטית של קבלה עם מפתח OpenAI (read_receipt.py)
+# openai>=1.40

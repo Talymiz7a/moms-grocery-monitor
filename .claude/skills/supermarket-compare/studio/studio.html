@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>כמה אתה משלם יותר בסופר</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--f:Heebo,system-ui,sans-serif;--ink:#eef3ff;--mute:#8ea3c8;--a:#77CEBF;--b:#7C9CF0}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#050a16;color:var(--ink);font-family:var(--f)}
+#cv{position:fixed;inset:0;display:block}
+#cover{position:fixed;inset:0;background:#050a16;z-index:9;transition:opacity .35s}
+#cover.off{opacity:0;pointer-events:none}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;pointer-events:none}
+#vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(60% 55% at 40% 58%,rgba(40,70,140,.16),transparent 70%),radial-gradient(75% 70% at 40% 55%,transparent 55%,rgba(3,6,14,.8) 100%)}
+#hud{position:absolute;right:650px;top:58px;text-align:right;opacity:0;will-change:opacity}
+#k1{font-size:54px;font-weight:400;color:#cfdcf7;letter-spacing:.3px}
+#k2{font-size:180px;font-weight:700;line-height:.98;margin-top:2px;white-space:nowrap}
+#num{will-change:transform;transform-origin:100% 60%;font-variant-numeric:tabular-nums;background:linear-gradient(100deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block;direction:ltr}
+#k2 .cur{font-size:92px;color:#dfe8fb;margin-right:40px}
+#k3{font-size:50px;margin-top:10px;color:#dfe8fb;opacity:0}
+#k3 b{color:var(--a);font-weight:700}
+.sh{font-family:Heebo,system-ui,sans-serif;font-weight:600}
+.lab{position:absolute;left:0;top:0;width:300px;opacity:0;will-change:transform,opacity}
+.lab.al-l{text-align:left}.lab.al-l .nm{justify-content:flex-end}.lab.al-c{text-align:center}.lab.al-c .nm{justify-content:center}
+.lab .nm{font-size:36px;font-weight:700;line-height:1.05;display:flex;align-items:center;gap:12px;white-space:nowrap}
+.lab .nm i{width:16px;height:16px;border-radius:50%;flex:none}
+.lab .tot{font-size:46px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1;white-space:nowrap}
+.lab .tot span{direction:ltr;display:inline-block}
+.lab .br{font-size:19px;color:var(--mute);white-space:nowrap;margin-top:1px}
+.lab .tag{display:inline-block;font-size:21px;font-weight:700;padding:5px 14px 4px;border-radius:999px;opacity:0;white-space:nowrap}
+.lab.home .tag{background:rgba(255,255,255,.1);color:#fff;border:1.5px solid rgba(255,255,255,.35)}
+.lab.best .tag{color:#04140c}
+#walk{position:absolute;left:0;top:0;font-size:40px;font-weight:700;white-space:nowrap;opacity:0;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.9)}
+#status{position:absolute;right:650px;top:70px;font-size:64px;font-weight:700;color:#e9f1ff;opacity:0;white-space:nowrap}
+#status b{color:var(--a)}
+#foot{position:absolute;left:64px;bottom:34px;font-size:19px;color:#7d8fb2;direction:rtl;opacity:0}
+#reco{position:absolute;right:90px;bottom:36px;width:548px;direction:rtl;padding:20px 26px 18px;border-radius:22px;background:rgba(6,14,30,.92);border:1.5px solid rgba(119,206,191,.5);text-align:right;opacity:0;pointer-events:none}
+#reco.on{pointer-events:auto}
+#reco .rl{font-size:24px;color:var(--a);font-weight:700}
+#reco .rn{font-size:36px;font-weight:700;line-height:1.15;margin-top:2px}
+#reco .ra{font-size:28px;color:#dfe8fb;margin-top:4px}
+#reco .rm{font-size:22px;color:#b9c7e4;margin-top:6px}
+#reco .rb{display:flex;gap:12px;margin-top:14px}
+#reco .rb a{font-size:26px;font-weight:700;color:#06121f;background:linear-gradient(100deg,var(--a),var(--b));border-radius:999px;padding:9px 26px 7px;text-decoration:none}
+#reco .rd{font-size:18px;line-height:1.35;color:#a9b8d6;margin-top:14px}
+#start{position:absolute;right:650px;top:300px;text-align:right;pointer-events:auto;transition:opacity .45s}
+#start h1{font-size:96px;font-weight:700;margin:0;line-height:1.05}
+#start p{font-size:36px;color:#b9c7e4;margin:22px 0 46px}
+#go{font-family:var(--f);font-size:38px;font-weight:700;color:#06121f;border:0;border-radius:999px;padding:22px 56px 20px;cursor:pointer;background:linear-gradient(100deg,var(--a),var(--b));box-shadow:0 10px 40px rgba(119,206,191,.35)}
+#start.off{opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="cover"></div>
+<div id="vig"></div>
+<div id="stage">
+  <div id="labels"></div>
+  <div id="walk"></div>
+  <div id="hud">
+    <div id="k1">באותו סל היית משלם</div>
+    <div id="k2"><span id="num">0.00</span><span class="cur"><b class="sh">₪</b> פחות</span></div>
+    <div id="k3"></div>
+  </div>
+  <div id="status"></div>
+  <div id="foot"></div>
+  <div id="reco"><div class="rl"></div><div class="rn"></div><div class="ra"></div><div class="rm"></div><div class="rb"></div><div class="rd"></div></div>
+  <div id="start">
+    <h1>כמה אתה משלם<br>יותר בסופר?</h1>
+    <p id="sub"></p>
+    <button id="go">השווה את הקבלה</button>
+  </div>
+</div>
+<script src="data.js"></script>
+<script>
+/* Performance rules (same as the gallery studio, proven at 120fps):
+   - no shadowBlur / ctx.filter inside a frame: glows, rings, receipt, chips and the map are pre-rendered
+   - every animated value is a pure function of t, so nothing is allocated per frame and R/seek are free
+   - DOM is written only when the shown string/transform actually changed; no backdrop-filter */
+'use strict';
+const D = window.DATA, W = 1920, H = 1080, FONT = getComputedStyle(document.documentElement).getPropertyValue('--f');
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d', {alpha: false});
+const stage = document.getElementById('stage');
+const N = D.items.length, K = D.stores.length;
+
+// ---------------------------------------------------------------- timeline (seconds)
+const T = {scan0: 0, scan1: 1.0, print0: 0.75, print1: 2.15, map0: 0, map1: 1.7, pins0: 1.25,
+           items0: 2.5, result: 9.95, zoom0: 10.5, zoom1: 12.4, walk0: 12.05, walk1: 12.95, year: 12.95, end: 15};
+const itemT = []; { // fixed total length for any basket: slow enough to read at first, then a rush
+  const w = i => 0.3 + 0.7 * Math.exp(-i / 5); let sum = 0; for (let i = 0; i < N - 1; i++) sum += w(i);
+  const k = 6.25 / Math.max(sum, 1); let s = T.items0; for (let i = 0; i < N; i++) { itemT.push(s); s += w(i) * k; }
+}
+const COMET = {d0: 0.18, stag: 0.045, dur: 0.72}, CHIP = {d0: 0.12, dur: 0.95}, SETTLE = 0.38;
+const landT = (i, k) => itemT[i] + COMET.d0 + k * COMET.stag + COMET.dur;
+
+// ---------------------------------------------------------------- easing
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
+const ss = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const eio = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const eout = t => 1 - Math.pow(1 - t, 3);
+const back = t => { const c = 1.9; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+const fmt = v => v.toFixed(2);
+const fmtInt = v => Math.round(v).toLocaleString('en-US');
+
+// ---------------------------------------------------------------- geometry
+const RX = 1352, RY = 34, RW = 452, LH = 44, HEAD = 176;
+const RH = HEAD + N * LH + 130;
+const VIEW = H - RY - 6;                      // how much paper fits on screen
+let SCROLL = 0;                               // a long receipt rolls up as the lines are processed
+const lineY = i => RY + HEAD + i * LH + LH / 2 - 3 - SCROLL;
+function scrollAt(t) {
+  const prog = u => { if (u <= itemT[0]) return 0; if (u >= itemT[N - 1]) return N - 1 + clamp((u - itemT[N - 1]) / 0.8); let i = 0; while (i < N - 2 && itemT[i + 1] <= u) i++; return i + (u - itemT[i]) / (itemT[i + 1] - itemT[i]); };
+  const p = (prog(t) + prog(t - 0.12) + prog(t - 0.24)) / 3;
+  return clamp(HEAD + p * LH + LH * 2 - VIEW * 0.5, 0, Math.max(0, RH + 16 - VIEW));
+}
+const pins = D.stores.map(s => ({x: s.xy[0], y: s.xy[1]}));
+const HOME = D.home, BEST = D.best;
+const M = {x: (pins[HOME].x + pins[BEST].x) / 2, y: (pins[HOME].y + pins[BEST].y) / 2};
+const pairPx = Math.hypot(pins[HOME].x - pins[BEST].x, pins[HOME].y - pins[BEST].y);
+const ZEND = clamp(300 / Math.max(pairPx, 1), 1.6, 4.2);
+const FOCUS = {x: 660, y: 690};
+const DRIFT_C = {x: 690, y: 660};
+
+const cam = {z: 1, x: 0, y: 0};
+function camAt(t) {
+  const zd = 1 + 0.03 * ss(0, T.zoom0, t);
+  const e = eio(clamp((t - T.zoom0) / (T.zoom1 - T.zoom0)));
+  const z = Math.pow(zd, 1 - e) * Math.pow(ZEND, e);
+  const smx = M.x * zd + DRIFT_C.x * (1 - zd), smy = M.y * zd + DRIFT_C.y * (1 - zd);
+  const sx = smx + (FOCUS.x - smx) * e, sy = smy + (FOCUS.y - smy) * e;
+  cam.z = z; cam.x = sx - M.x * z; cam.y = sy - M.y * z; cam.e = e;
+}
+const scrX = p => p.x * cam.z + cam.x, scrY = p => p.y * cam.z + cam.y;
+
+// ---------------------------------------------------------------- sizing
+let S = 1, OX = 0, OY = 0, DPR = 1, R = 1;
+function mk(w, h) { const c = document.createElement('canvas'); c.width = Math.ceil(w * R); c.height = Math.ceil(h * R); const g = c.getContext('2d'); g.scale(R, R); return [c, g]; }
+
+// ---------------------------------------------------------------- pre-rendered layers
+let mapC, tileC, paperC, photoImg, chipC = [], glowC = [], ringC = [], dotC;
+const MPAD = {x: 260, y: 160};
+const ROAD = [
+  {w: 3.0, c: 'rgba(96,206,255,.62)', g: 'rgba(96,206,255,.10)', gw: 12},
+  {w: 1.7, c: 'rgba(160,188,245,.44)'},
+  {w: 1.15, c: 'rgba(132,162,228,.30)'},
+  {w: 0.72, c: 'rgba(118,148,212,.21)'},
+  {w: 1.25, c: 'rgba(230,236,255,.24)', dash: [7, 6]}];
+const boxes = D.roads.map(layer => layer.map(p => { let a = 1e9, b = 1e9, c = -1e9, d = -1e9; for (let i = 0; i < p.length; i += 2) { if (p[i] < a) a = p[i]; if (p[i] > c) c = p[i]; if (p[i + 1] < b) b = p[i + 1]; if (p[i + 1] > d) d = p[i + 1]; } return [a, b, c, d]; }));
+
+function drawRoads(g, z, tx, ty, ws, vw, vh) {
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  for (const r of [3, 2, 4, 1, 0]) {
+    const st = ROAD[r], L = D.roads[r], B = boxes[r];
+    g.beginPath();
+    for (let j = 0; j < L.length; j++) {
+      const b = B[j];
+      if (b[2] * z + tx < -20 || b[0] * z + tx > vw + 20 || b[3] * z + ty < -20 || b[1] * z + ty > vh + 20) continue;
+      const p = L[j];
+      g.moveTo(p[0] * z + tx, p[1] * z + ty);
+      for (let i = 2; i < p.length; i += 2) g.lineTo(p[i] * z + tx, p[i + 1] * z + ty);
+    }
+    if (st.g) { g.strokeStyle = st.g; g.lineWidth = st.gw * ws; g.stroke(); }
+    g.setLineDash(st.dash ? st.dash.map(v => v * ws) : []);
+    g.strokeStyle = st.c; g.lineWidth = st.w * ws; g.stroke();
+    g.setLineDash([]);
+  }
+}
+function paintMapBg(g, w, h) { g.fillStyle = '#050a16'; g.fillRect(0, 0, w, h); }
+function prerender() {
+  // the whole map once (with margin for the camera drift)
+  let g; [mapC, g] = mk(W + 2 * MPAD.x, H + 2 * MPAD.y);
+  paintMapBg(g, W + 2 * MPAD.x, H + 2 * MPAD.y);
+  drawRoads(g, 1, MPAD.x, MPAD.y, 1, W + 2 * MPAD.x, H + 2 * MPAD.y);
+  // the zoomed-in view, sharp, for the ending
+  [tileC, g] = mk(W + 2 * MPAD.x, H + 2 * MPAD.y);
+  camAt(T.end);
+  paintMapBg(g, W + 2 * MPAD.x, H + 2 * MPAD.y);
+  drawRoads(g, cam.z, cam.x + MPAD.x, cam.y + MPAD.y, Math.pow(cam.z, 0.62), W + 2 * MPAD.x, H + 2 * MPAD.y);
+  // glows and rings per chain
+  glowC = []; ringC = [];
+  for (const s of D.stores) {
+    let c; [c, g] = mk(128, 128);
+    const rg = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    rg.addColorStop(0, hexA(s.color, .95)); rg.addColorStop(.18, hexA(s.color, .55)); rg.addColorStop(.5, hexA(s.color, .14)); rg.addColorStop(1, hexA(s.color, 0));
+    g.fillStyle = rg; g.fillRect(0, 0, 128, 128); glowC.push(c);
+    [c, g] = mk(128, 128);
+    g.strokeStyle = s.color; g.lineWidth = 3; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.stroke(); ringC.push(c);
+  }
+  [dotC, g] = mk(64, 64);
+  const rg = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  rg.addColorStop(0, 'rgba(255,255,255,1)'); rg.addColorStop(.35, 'rgba(255,255,255,.5)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  paperC = paintReceipt();
+  chipC = D.items.map(paintChip);
+}
+function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${n >> 8 & 255},${n & 255},${a})`; }
+
+function paintReceipt() {
+  const [c, g] = mk(RW, RH + 16);
+  const r = D.receipt;
+  // paper
+  g.fillStyle = '#f3efe6'; g.fillRect(0, 0, RW, RH);
+  const sh = g.createLinearGradient(0, 0, RW, 0);
+  sh.addColorStop(0, 'rgba(0,0,0,.07)'); sh.addColorStop(.06, 'rgba(0,0,0,0)'); sh.addColorStop(.94, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.08)');
+  g.fillStyle = sh; g.fillRect(0, 0, RW, RH);
+  // torn edge
+  g.fillStyle = '#f3efe6'; g.beginPath(); g.moveTo(0, RH);
+  for (let x = 0; x <= RW; x += 18) g.lineTo(x + 9, RH + 12), g.lineTo(x + 18, RH);
+  g.closePath(); g.fill();
+  g.direction = 'rtl'; g.fillStyle = '#25221d'; g.textBaseline = 'alphabetic';
+  g.textAlign = 'center';
+  g.font = `700 38px ${FONT}`; g.fillText(r.chain || '', RW / 2, 64);
+  g.font = `400 23px ${FONT}`; g.fillStyle = '#4a453d'; g.fillText(r.branch || '', RW / 2, 101);
+  const dt = (r.date || '').split('-').reverse().join('.');
+  g.font = `400 21px ${FONT}`; g.fillText(dt, RW / 2, 133);
+  dash(g, 152);
+  D.items.forEach((it, i) => {
+    const y = HEAD + i * LH + LH / 2 + 6;
+    g.textAlign = 'right'; g.direction = 'rtl'; g.fillStyle = '#25221d';
+    let fs = 24; g.font = `700 ${fs}px ${FONT}`;
+    while (g.measureText(it.name).width > RW - 170 && fs > 16) { fs--; g.font = `700 ${fs}px ${FONT}`; }
+    g.fillText(it.name, RW - 34, y);
+    g.direction = 'ltr'; g.textAlign = 'left'; g.font = `700 24px ${FONT}`; g.fillText(fmt(it.paid), 22, y);
+    if (it.qty > 1) { g.font = `400 19px ${FONT}`; g.fillStyle = '#6d665b'; g.fillText(`${it.qty}×`, 104, y); }
+  });
+  const yb = HEAD + N * LH + 10;
+  dash(g, yb);
+  g.direction = 'rtl'; g.textAlign = 'right'; g.fillStyle = '#25221d'; g.font = `700 32px ${FONT}`;
+  g.fillText('סה״כ בהשוואה', RW - 30, yb + 56);
+  g.direction = 'ltr'; g.textAlign = 'left'; g.fillText(fmt(D.paid), 22, yb + 56);
+  g.font = `400 19px ${FONT}`; g.fillStyle = '#6d665b'; g.textAlign = 'center'; g.direction = 'rtl';
+  g.fillText('תודה ולהתראות', RW / 2, yb + 98);
+  return c;
+}
+function dash(g, y) { g.strokeStyle = 'rgba(60,55,48,.55)'; g.lineWidth = 2; g.setLineDash([7, 6]); g.beginPath(); g.moveTo(18, y); g.lineTo(RW - 18, y); g.stroke(); g.setLineDash([]); }
+
+function paintChip(it) {
+  const s = D.stores[it.c];
+  const [m] = mk(10, 10); const mg = m.getContext('2d'); mg.font = `700 30px ${FONT}`;
+  const tw = mg.measureText(it.name).width;
+  mg.font = `700 30px ${FONT}`; const pw = mg.measureText(fmt(it.a[it.c])).width;
+  const w = Math.ceil(tw + pw + 98), h = 64;
+  const [c, g] = mk(w, h);
+  rr(g, 1, 1, w - 2, h - 2, 32); g.fillStyle = 'rgba(10,18,36,.94)'; g.fill();
+  g.lineWidth = 2; g.strokeStyle = s.color; g.stroke();
+  g.fillStyle = '#fff'; g.font = `700 30px ${FONT}`; g.textBaseline = 'middle';
+  g.direction = 'rtl'; g.textAlign = 'right'; g.fillText(it.name, w - 26, h / 2 + 2);
+  g.direction = 'ltr'; g.textAlign = 'left'; g.fillStyle = s.color; g.fillText(fmt(it.a[it.c]), 24, h / 2 + 2);
+  return c;
+}
+function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+
+// ---------------------------------------------------------------- DOM: labels, HUD
+const labels = D.stores.map((s, k) => {
+  const el = document.createElement('div');
+  el.className = 'lab' + (k === HOME ? ' home' : '') + (k === BEST ? ' best' : '');
+  el.innerHTML = `<div class="nm"><i style="background:${s.color};box-shadow:0 0 14px ${s.color}"></i>${s.he}<b class="tag"></b></div>
+    <div class="tot"><span>0.00</span> <b class="sh">₪</b></div><div class="br"></div>`;
+  el.querySelector('.br').textContent = s.branch.replace(/\s+/g, ' ').replace(/\(\d+\)/g, '').trim().slice(0, 26);
+  const tag = el.querySelector('.tag');
+  if (k === HOME) tag.textContent = 'כאן קנית';
+  if (k === BEST) { tag.textContent = 'הכי זול'; tag.style.background = s.color; }
+  document.getElementById('labels').appendChild(el);
+  return {el, v: el.querySelector('.tot span'), tag, last: {}, w: 256, h: 150};
+});
+const elNum = document.getElementById('num'), elHud = document.getElementById('hud'), elK3 = document.getElementById('k3');
+const elStatus = document.getElementById('status'), elWalk = document.getElementById('walk'), elFoot = document.getElementById('foot'), elStart = document.getElementById('start');
+elK3.innerHTML = `${D.perYear === 52 ? 'בסל שבועי' : D.perYear === 12 ? 'בקנייה חודשית' : 'בקצב הזה'}, זה <b>${fmtInt(D.saving * D.perYear)} <span class="sh">₪</span></b> בשנה`;
+const meters = D.km != null ? Math.round(D.km * 1000 / 10) * 10 : null;
+elWalk.textContent = meters != null ? (meters < 1000 ? `${meters} מטר מהסניף שלך` : `${D.km.toFixed(1)} ק״מ מהסניף שלך`) : '';
+const day = (D.receipt.date || '').split('-').reverse().join('.');
+elFoot.textContent = `מחירי מדף מהקבצים שהרשתות מחויבות לפרסם לפי חוק${day ? ' · ' + day : ''} · כולל מבצעים פתוחים לכולם, בלי מועדון`;
+const elReco = document.getElementById('reco');
+if (D.advice) {
+  const A = D.advice, q = s => elReco.querySelector(s);
+  q('.rl').textContent = A.go ? 'הסניף המומלץ' : 'ההמלצה: להישאר בסניף שלך';
+  q('.rn').textContent = A.name;
+  q('.ra').textContent = A.address ? A.address + (A.address_source === 'map' ? ' (לפי המפה)' : '') : 'הרשת לא פרסמה כתובת';
+  q('.rm').textContent = A.go ? `נשארים בערך ${A.net.toFixed(2)} ₪ אחרי עלות נסיעה משוערת` : 'הפער לא מכסה את הנסיעה לסניף אחר';
+  for (const [t, u] of [['Waze', A.waze], ['גוגל מפות', A.google]]) if (u) { const a = document.createElement('a'); a.textContent = t; a.href = u; a.target = '_blank'; a.rel = 'noopener'; q('.rb').append(a); }
+  q('.rd').textContent = D.disclaimer || '';
+}
+document.getElementById('sub').textContent = `צילום אחד של קבלה, ${N} מוצרים, מול ${D.branches} סניפים`;
+
+// label placement: greedy, away from neighbours, never over the receipt or the counter
+const FORBID = [[RX - 40, 0, W, H], [560, 0, 1300, 318], [0, 1000, 1000, H]];
+function overlap(a, b) { const w = Math.min(a[2], b[2]) - Math.max(a[0], b[0]), h = Math.min(a[3], b[3]) - Math.max(a[1], b[1]); return w > 0 && h > 0 ? w * h : 0; }
+function placeLabels(pts, only) {
+  const lw = 300, lh = 124, gap = 30, out = [];
+  const dirs = [[gap, -lh / 2], [-gap - lw, -lh / 2], [-lw / 2, -gap - lh], [-lw / 2, gap], [gap, -lh + 10], [gap, -10], [-gap - lw, -lh + 10], [-gap - lw, -10]];
+  const order = pts.map((p, k) => k).filter(k => !only || only.includes(k))
+    .sort((a, b) => crowd(pts, b) - crowd(pts, a));
+  const placed = [];
+  for (const k of order) {
+    const p = pts[k]; let best = null, bs = 1e18;
+    for (const d of dirs) {
+      const box = [p.x + d[0], p.y + d[1], p.x + d[0] + lw, p.y + d[1] + lh];
+      let s = 0;
+      if (box[0] < 20 || box[1] < 20 || box[2] > W - 20 || box[3] > H - 20) s += 4e5;
+      for (const f of FORBID) s += overlap(box, f) * 6;
+      for (const q of placed) s += overlap(box, q) * 10;
+      pts.forEach((o, j) => { if (j !== k && (!only || only.includes(j))) s += overlap(box, [o.x - 26, o.y - 26, o.x + 26, o.y + 26]) * 20; });
+      const cx = (box[0] + box[2]) / 2 - p.x, cy = (box[1] + box[3]) / 2 - p.y;
+      const nb = nearestOther(pts, k, only); if (nb) s -= ((cx * (p.x - nb.x) + cy * (p.y - nb.y)) / (Math.hypot(cx, cy) * Math.hypot(p.x - nb.x, p.y - nb.y) + 1e-6)) * 900;
+      if (s < bs) { bs = s; best = d; }
+    }
+    out[k] = best; placed.push([p.x + best[0], p.y + best[1], p.x + best[0] + lw, p.y + best[1] + lh]);
+  }
+  return out;
+}
+function crowd(pts, k) { let s = 0; pts.forEach((o, j) => { if (j !== k) s += 1 / (Math.hypot(o.x - pts[k].x, o.y - pts[k].y) + 20); }); return s; }
+function nearestOther(pts, k, only) { let b = null, d = 1e9; pts.forEach((o, j) => { if (j === k || (only && !only.includes(j))) return; const dd = Math.hypot(o.x - pts[k].x, o.y - pts[k].y); if (dd < d) { d = dd; b = o; } }); return b; }
+camAt(T.zoom0 - 0.01);
+const offStart = placeLabels(pins.map(p => ({x: scrX(p), y: scrY(p)})));
+camAt(T.end);
+const offEnd = placeLabels(pins.map(p => ({x: scrX(p), y: scrY(p)})), [HOME, BEST]);
+
+// ---------------------------------------------------------------- pure state of t
+function storeTotal(k, t) {
+  let v = 0;
+  for (let i = 0; i < N; i++) { const a = t - landT(i, k); if (a > 0) v += D.items[i].a[k] * ss(0, SETTLE, a); }
+  return v;
+}
+function savingAt(t) {
+  if (t >= T.result) return D.saving;
+  let paid = 0, mn = 1e9;
+  for (let k = 0; k < K; k++) { const v = storeTotal(k, t); if (k === HOME) paid = v; if (v < mn) mn = v; }
+  return Math.max(0, paid - mn);
+}
+
+// ---------------------------------------------------------------- frame
+let t0 = null, running = false, seekT = null; const rehearse = [];
+const frames = []; let lastNow = 0;
+function setText(o, key, el, s) { if (o.last[key] !== s) { o.last[key] = s; el.textContent = s; } }
+const hudLast = {};
+function setStyle(el, prop, v, cache, key) { if (cache[key] !== v) { cache[key] = v; el.style[prop] = v; } }
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (lastNow && running) frames.push(now - lastNow);
+  lastNow = now;
+  if (rehearse.length) { draw(rehearse.shift()); if (!rehearse.length) { draw(-1); document.getElementById('cover').classList.add('off'); } return; }
+  const t = seekT != null ? seekT : running ? (now - t0) / 1000 : -1;
+  draw(t);
+}
+
+function draw(t) {
+  const idle = t < 0; if (idle) t = 0;
+  camAt(t);
+  SCROLL = scrollAt(t);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#050a16'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(R, 0, 0, R, OX * DPR, OY * DPR);
+
+  // map
+  const mapA = idle ? 0.55 : 0.55 + 0.45 * ss(T.map0, T.map1, t);
+  ctx.globalAlpha = mapA;
+  ctx.drawImage(mapC, cam.x - MPAD.x * cam.z, cam.y - MPAD.y * cam.z, (W + 2 * MPAD.x) * cam.z, (H + 2 * MPAD.y) * cam.z);
+  const ta = ss(0.62, 0.97, cam.e);
+  if (ta > 0) {
+    camTile.z = ZEND; // the tile was rendered with the end camera
+    const k = cam.z / ZEND;
+    ctx.globalAlpha = ta;
+    ctx.drawImage(tileC, cam.x - (endCam.x + MPAD.x) * k, cam.y - (endCam.y + MPAD.y) * k, (W + 2 * MPAD.x) * k, (H + 2 * MPAD.y) * k);
+  }
+  ctx.globalAlpha = 1;
+  // scan ring when the map wakes up
+  if (!idle && t < 2.2) {
+    const a = ss(0, 0.25, t) * (1 - ss(1.1, 2.1, t)), rad = 80 + 1500 * eout(clamp(t / 2.0));
+    ctx.globalAlpha = a * 0.5; ctx.drawImage(dotRing, DRIFT_C.x - rad, DRIFT_C.y - rad, rad * 2, rad * 2); ctx.globalAlpha = 1;
+  }
+
+  // walking route home → best
+  if (t > T.walk0 && meters != null) {
+    const p = eout(clamp((t - T.walk0) / (T.walk1 - T.walk0)));
+    const a = {x: scrX(pins[HOME]), y: scrY(pins[HOME])}, b = {x: scrX(pins[BEST]), y: scrY(pins[BEST])};
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+    const cx = mx - dy / L * L * 0.32, cy = my + dx / L * L * 0.32 * (dx < 0 ? -1 : 1) - L * 0.22;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.setLineDash([2, 14]);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y);
+    const STEPS = 40;
+    for (let s = 1; s <= STEPS * p; s++) { const u = s / STEPS, v = 1 - u; ctx.lineTo(v * v * a.x + 2 * v * u * cx + u * u * b.x, v * v * a.y + 2 * v * u * cy + u * u * b.y); }
+    ctx.stroke(); ctx.setLineDash([]);
+    walkPos.x = Math.min(Math.max(a.x, b.x) + 46, RX - 470); walkPos.y = my; walkPos.a = ss(T.walk0 + 0.3, T.walk1, t);
+  } else walkPos.a = 0;
+
+  // ripples where things landed
+  for (let i = 0; i < N; i++) {
+    const it = D.items[i], a = t - (itemT[i] + CHIP.d0 + CHIP.dur);
+    if (a > 0 && a < 0.6) {
+      const k = it.c, r = 18 + 70 * eout(a / 0.6);
+      ctx.globalAlpha = 0.85 * (1 - a / 0.6);
+      ctx.drawImage(ringC[k], scrX(pins[k]) - r, scrY(pins[k]) - r, r * 2, r * 2);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // receipt: the photo is scanned, then the paper unrolls
+  drawReceipt(t, idle);
+
+  // comets: every line sends its price to every branch
+  if (!idle) for (let i = 0; i < N; i++) {
+    const t1 = itemT[i] + COMET.d0;
+    if (t < t1 || t > t1 + COMET.dur + K * COMET.stag) continue;
+    const sx = RX + 40, sy = lineY(i);
+    for (let k = 0; k < K; k++) {
+      const u = (t - t1 - k * COMET.stag) / COMET.dur;
+      if (u <= 0 || u >= 1) continue;
+      const ex = scrX(pins[k]), ey = scrY(pins[k]);
+      const cx = (sx + ex) / 2 - 40, cy = Math.min(sy, ey) - 140 - 30 * k;
+      for (let j = 5; j >= 0; j--) {
+        const w = eio(clamp(u - j * 0.035)), v = 1 - w;
+        const x = v * v * sx + 2 * v * w * cx + w * w * ex, y = v * v * sy + 2 * v * w * cy + w * w * ey;
+        const sz = (j === 0 ? 34 : 22 - j * 3);
+        ctx.globalAlpha = j === 0 ? 1 : 0.55 - j * 0.08;
+        ctx.drawImage(glowC[k], x - sz / 2, y - sz / 2, sz, sz);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // pins
+  for (let k = 0; k < K; k++) {
+    const a = idle ? 0 : back(clamp((t - T.pins0 - k * 0.14) / 0.5));
+    if (a <= 0) continue;
+    const x = scrX(pins[k]), y = scrY(pins[k]);
+    const hot = landPulse(k, t);
+    const win = k === BEST ? ss(T.result, T.result + 0.6, t) : 0;
+    const g = (54 + 26 * hot + 50 * win + 6 * Math.sin(t * 3 + k)) * a;
+    ctx.globalAlpha = 0.9; ctx.drawImage(glowC[k], x - g, y - g, g * 2, g * 2);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y, (12 + 3 * hot + 3 * win) * a, 0, 7); ctx.fill();
+    ctx.fillStyle = D.stores[k].color; ctx.beginPath(); ctx.arc(x, y, (8 + 2 * hot + 2 * win) * a, 0, 7); ctx.fill();
+  }
+
+  // chips: the line itself flies to the branch where it is cheapest
+  if (!idle) for (let i = 0; i < N; i++) {
+    const u = (t - itemT[i] - CHIP.d0) / CHIP.dur;
+    if (u <= 0 || u >= 1) continue;
+    const c = chipC[i], cw = c.width / R, ch = c.height / R, k = D.items[i].c;
+    const sx = RX + RW / 2 - 30, sy = lineY(i), ex = scrX(pins[k]), ey = scrY(pins[k]);
+    const w = eio(u), v = 1 - w, cx = (sx + ex) / 2 + 60, cy = Math.min(sy, ey) - 230;
+    const x = v * v * sx + 2 * v * w * cx + w * w * ex, y = v * v * sy + 2 * v * w * cy + w * w * ey;
+    const sc = (0.72 + 0.4 * Math.sin(Math.PI * Math.min(1, u * 1.25))) * (1 - 0.75 * ss(0.7, 1, u));
+    ctx.globalAlpha = ss(0, 0.08, u) * (1 - ss(0.86, 1, u));
+    ctx.drawImage(c, x - cw * sc / 2, y - ch * sc / 2, cw * sc, ch * sc);
+  }
+  ctx.globalAlpha = 1;
+
+  updateDom(t, idle);
+}
+const walkPos = {x: 0, y: 0, a: 0}; let walkW = 0;
+const endCam = {}; const camTile = {};
+let dotRing;
+function landPulse(k, t) {
+  let h = 0;
+  for (let i = 0; i < N; i++) { const a = t - landT(i, k); if (a > 0 && a < 0.35) h = Math.max(h, 1 - a / 0.35); }
+  return h;
+}
+
+function drawReceipt(t, idle) {
+  // photo + scan beam
+  const pa = idle ? 1 : 1 - ss(T.scan1 - 0.15, T.scan1 + 0.25, t);
+  if (photoImg && pa > 0) {
+    const pw = 470, ph = pw * photoImg.height / photoImg.width, px = RX + RW / 2 - pw / 2, py = 150;
+    ctx.globalAlpha = pa; ctx.save(); ctx.translate(px + pw / 2, py + ph / 2); ctx.rotate(-0.035);
+    ctx.drawImage(photoImg, -pw / 2, -ph / 2, pw, ph);
+    if (!idle) {
+      const by = -ph / 2 + ph * eio(clamp((t - T.scan0) / (T.scan1 - T.scan0)));
+      ctx.fillStyle = 'rgba(119,206,191,.16)'; ctx.fillRect(-pw / 2, -ph / 2, pw, by + ph / 2);
+      ctx.globalAlpha = pa; ctx.drawImage(dotC, -pw / 2 - 40, by - 26, pw + 80, 52);
+      ctx.fillStyle = '#9ff3e4'; ctx.fillRect(-pw / 2, by - 2, pw, 4);
+    }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  if (idle) return;
+  // printer mouth
+  const ma = ss(T.print0 - 0.3, T.print0, t);
+  ctx.globalAlpha = ma;
+  ctx.fillStyle = '#0d1527'; rr(ctx, RX - 22, RY - 14, RW + 44, 22, 11); ctx.fill();
+  ctx.fillStyle = 'rgba(119,206,191,.55)'; ctx.fillRect(RX - 6, RY + 2, RW + 12, 2);
+  ctx.globalAlpha = 1;
+  const pr = eio(clamp((t - T.print0) / (T.print1 - T.print0)));
+  if (pr <= 0) return;
+  const vis = Math.min(RH + 14, VIEW) * pr;
+  ctx.drawImage(paperC, 0, SCROLL * R, paperC.width, Math.max(1, vis * R), RX, RY + 6, RW, vis);
+  // roll shading at the unrolling edge
+  if (pr < 1) { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(RX, RY + 6 + vis - 10, RW, 10); }
+  // per-line: scan bar while processed, then a dot of the cheapest chain
+  for (let i = 0; i < N; i++) {
+    const a = t - itemT[i]; if (a < 0) break;
+    if (lineY(i) < RY + 6 || lineY(i) > H + 20) continue;
+    const y = lineY(i) - LH / 2 + 4, it = D.items[i];
+    if (a < 0.7) {
+      const sw = eout(clamp(a / 0.22)), fade = 1 - ss(0.3, 0.7, a);
+      ctx.fillStyle = `rgba(119,206,191,${0.42 * fade})`;
+      ctx.fillRect(RX + RW - 8 - (RW - 16) * sw, y, (RW - 16) * sw, LH - 6);
+    }
+    const da = ss(0.5, 0.75, a);
+    if (da > 0) {
+      ctx.globalAlpha = da; ctx.fillStyle = D.stores[it.c].color;
+      ctx.beginPath(); ctx.arc(RX + RW - 16, lineY(i) + 1, 7, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }
+}
+
+function updateDom(t, idle) {
+  // HUD
+  setStyle(elHud, 'opacity', String(idle ? 0 : ss(T.items0 - 0.4, T.items0 + 0.1, t)), hudLast, 'o');
+  const sv = savingAt(t);
+  if (hudLast.n !== fmt(sv)) { hudLast.n = fmt(sv); elNum.textContent = hudLast.n; }
+  const pop = t > T.result ? Math.sin(Math.PI * clamp((t - T.result) / 0.45)) * 0.07 : 0;
+  setStyle(elNum, 'transform', `scale(${(1 + pop).toFixed(3)})`, hudLast, 'pop');
+  setStyle(elK3, 'opacity', String(ss(T.year, T.year + 0.5, t)), hudLast, 'k3');
+  setStyle(elFoot, 'opacity', String(idle ? 0 : 0.9 * ss(T.items0, T.items0 + 0.6, t)), hudLast, 'f');
+  if (D.advice) { const ra = idle ? 0 : ss(T.year + 0.6, T.year + 1.1, t); setStyle(elReco, 'opacity', ra.toFixed(3), hudLast, 'ra'); elReco.classList.toggle('on', ra > 0.5); }
+  // status line before the counter takes over
+  const st = idle ? 0 : t < 1.15 ? ss(0.05, 0.3, t) * (1 - ss(0.95, 1.15, t)) : ss(1.15, 1.35, t) * (1 - ss(T.items0 - 0.55, T.items0 - 0.3, t));
+  setStyle(elStatus, 'opacity', st.toFixed(3), hudLast, 'st');
+  const sm = t < 1.15 ? 'קורא את הקבלה…' : (D.radius ? `${N} מוצרים מול <b>${D.branches} סניפים</b> ברדיוס ${D.radius} ק״מ` : `${N} מוצרים מול <b>${D.branches} סניפים</b>`);
+  if (hudLast.sm !== sm) { hudLast.sm = sm; elStatus.innerHTML = sm; }
+  // labels
+  const ez = cam.e;
+  for (let k = 0; k < K; k++) {
+    const L = labels[k];
+    const a0 = idle ? 0 : ss(T.pins0 + 0.25 + k * 0.14, T.pins0 + 0.65 + k * 0.14, t);
+    const keep = (k === HOME || k === BEST) ? 1 : 1 - ss(0, 0.35, ez);
+    const op = (a0 * keep).toFixed(3);
+    setStyle(L.el, 'opacity', op, L.last, 'o');
+    if (op === '0.000') continue;
+    const d0 = offStart[k], d1 = offEnd[k] || d0, e = ss(0.15, 0.85, ez);
+    const ox = d0[0] + (d1[0] - d0[0]) * e, oy = d0[1] + (d1[1] - d0[1]) * e;
+    const dd = e < 0.5 ? d0 : d1, al = dd[0] > 0 ? 'al-l' : dd[0] < -150 ? 'al-r' : 'al-c';
+    if (L.last.al !== al) { if (L.last.al) L.el.classList.remove(L.last.al); L.el.classList.add(al); L.last.al = al; }
+    const sc = 1 + (k === BEST ? 0.12 * ss(T.result, T.result + 0.5, t) : 0);
+    const tr = `translate(${(scrX(pins[k]) + ox).toFixed(1)}px,${(scrY(pins[k]) + oy).toFixed(1)}px) scale(${sc.toFixed(3)})`;
+    setStyle(L.el, 'transform', tr, L.last, 't');
+    setText(L, 'v', L.v, fmt(t >= T.result ? D.stores[k].total : storeTotal(k, t)));
+    const tagA = k === HOME ? ss(T.pins0 + 0.6, T.pins0 + 1.0, t) : ss(T.result, T.result + 0.4, t);
+    setStyle(L.tag, 'opacity', tagA.toFixed(3), L.last, 'tag');
+  }
+  if (walkPos.a > 0) {
+    setStyle(elWalk, 'opacity', walkPos.a.toFixed(3), hudLast, 'wo');
+    setStyle(elWalk, 'transform', `translate(${walkPos.x.toFixed(1)}px,${(walkPos.y - 26).toFixed(1)}px)`, hudLast, 'wt');
+  } else setStyle(elWalk, 'opacity', '0', hudLast, 'wo');
+}
+
+// ---------------------------------------------------------------- control
+function fit() {
+  const vw = innerWidth, vh = innerHeight;
+  if (!vw || !vh) return;
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  S = Math.min(vw / W, vh / H); OX = (vw - W * S) / 2; OY = (vh - H * S) / 2; R = S * DPR;
+  cv.width = Math.round(vw * DPR); cv.height = Math.round(vh * DPR);
+  cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
+  stage.style.transform = `translate(${OX}px,${OY}px) scale(${S})`;
+  prerender();
+  camAt(T.end); endCam.x = cam.x; endCam.y = cam.y;
+  // a soft white ring for the opening sweep
+  const [c, g] = mk(256, 256); g.strokeStyle = 'rgba(159,243,228,.9)'; g.lineWidth = 2.5; g.beginPath(); g.arc(128, 128, 124, 0, 7); g.stroke(); dotRing = c;
+}
+function start() {
+  elStart.classList.add('off'); frames.length = 0; seekT = null;
+  running = true; t0 = performance.now();
+}
+document.getElementById('go').addEventListener('click', start);
+addEventListener('keydown', e => {
+  if (e.key === 'r' || e.key === 'R' || e.key === 'ר') start();
+  else if ((e.key === ' ' || e.key === 'Enter') && !running) start();
+  else if (e.key === 'f' || e.key === 'F' || e.key === 'כ') document.documentElement.requestFullscreen?.();
+});
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(fit, 120); });
+window.__stats = () => { const a = frames.slice(1).sort((x, y) => x - y), q = p => a[Math.floor(p * (a.length - 1))] || 0;
+  return {frames: a.length, p50: +q(.5).toFixed(2), p95: +q(.95).toFixed(2), p99: +q(.99).toFixed(2), max: +(a[a.length - 1] || 0).toFixed(2), over20ms: a.filter(x => x > 20).length}; };
+window.__seek = s => { elStart.classList.add('off'); seekT = s; };
+
+Promise.all(['400', '700'].map(w => document.fonts.load(`${w} 40px Heebo`).catch(() => 0)))
+  .then(() => document.fonts.ready)
+  .then(() => new Promise(res => { if (!D.photo) return res(); photoImg = new Image(); photoImg.onload = res; photoImg.onerror = () => { photoImg = null; res(); }; photoImg.src = D.photo; }))
+  .then(() => {
+    fit();
+    // rehearsal behind a cover: every layer, texture and DOM state is rendered once before the first take
+    for (let w = 0.2; w < T.end; w += 0.35) rehearse.push(w);
+    const q = new URLSearchParams(location.search);
+    if (q.has('t')) window.__seek(parseFloat(q.get('t')));
+    else if (q.has('auto')) start();
+    requestAnimationFrame(frame);
+  });
+</script>
+</body>
+</html>
